@@ -1,0 +1,71 @@
+server:
+  name: "elderly-health-backend"
+  host: "0.0.0.0"
+  port: 8011
+  mode: release
+
+mysql:
+  host: ehc-mysql
+  port: 3306
+  user: root
+  password: root123456
+  database: elderly_health
+  max_open_conns: 100
+  max_idle_conns: 10
+  conn_max_lifetime: 1h
+
+redis:
+  host: ehc-mysql
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 20
+
+mqtt:
+  broker: tcp://ehc-emqx:1883
+  client_id: elderly-health-backend
+  username: ""
+  password: ""
+  qos: 1
+
+jwt:
+  secret: your-secret-key-change-in-production
+  access_token_ttl: 24h
+  refresh_token_ttl: 168h
+  admin_access_token_ttl: 15m
+  admin_refresh_token_ttl: 8h
+
+notify:
+  sms_provider: aliyun
+  sms_api_key: ""
+  push_provider: jpush
+  phone_provider: twilio
+
+alarm:
+  p0_timeout: 5s
+  p1_timeout: 1m
+  escalate_chain:
+    - community
+    - emergency_120
+
+signin:
+  window_start: "06:00"
+  window_end: "12:00"
+  remind_interval: 30m
+  escalate_time: 2h
+
+security:
+  max_login_attempts: 5
+  lock_duration: 30m
+  password_min_len: 8
+  password_expire: 2160h  # 90 days
+  ip_whitelist: []
+  require_2fa: false
+  bcrypt_cost: 12
+
+log:
+  level: info
+  output_path: ""
+  max_size: 100
+  max_backups: 10
+  max_age: 30

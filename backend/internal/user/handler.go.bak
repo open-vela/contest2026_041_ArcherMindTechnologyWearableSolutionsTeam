@@ -1,0 +1,531 @@
+package user
+
+import (
+	"database/sql"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"elderly-health-backend/internal/shared/database"
+	apperrors "elderly-health-backend/internal/shared/errors"
+	"elderly-health-backend/internal/shared/middleware"
+	"elderly-health-backend/internal/shared/models"
+	"elderly-health-backend/internal/shared/utils"
+)
+
+// RegisterRoutes 注册用户服务路由
+func RegisterRoutes(r *gin.RouterGroup, jwtSecret string) {
+	// 公开接口
+	r.POST("/auth/login", Login(jwtSecret))
+	r.POST("/auth/refresh", RefreshToken(jwtSecret))
+	r.POST("/auth/send-code", SendVerifyCode)
+
+	// 需要认证
+	auth := r.Group("")
+	auth.Use(middleware.JWTAuth(jwtSecret))
+	{
+		auth.GET("/auth/me", GetCurrentUser)
+		auth.GET("/auth/profile", GetCurrentUser)
+		auth.PUT("/auth/password", ChangePassword)
+
+		// 老人档案
+		auth.GET("/elderly", ListElderly)
+		auth.GET("/elderly/:id", GetElderly)
+		auth.POST("/elderly", CreateElderly)
+		auth.PUT("/elderly/:id", UpdateElderly)
+		auth.DELETE("/elderly/:id", DeleteElderly)
+
+		// 子女绑定
+		auth.POST("/family-bindings", CreateFamilyBinding)
+		auth.GET("/family-bindings", ListFamilyBindings)
+		auth.DELETE("/family-bindings/:id", RemoveFamilyBinding)
+
+		// 社区管理
+		auth.GET("/communities", ListCommunities)
+		auth.GET("/communities/:id", GetCommunity)
+		auth.POST("/communities", CreateCommunity)
+	}
+}
+
+// ============ 认证 ============
+
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+func Login(secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req LoginRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+			return
+		}
+
+		// 查询用户
+		var user models.User
+		err := database.DB.QueryRow(
+			`SELECT id, username, password_hash, role, status, last_login_at FROM users WHERE username = ?`,
+			req.Username,
+		).Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Role, &user.Status, &user.LastLoginAt)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusUnauthorized, utils.Error(apperrors.ErrCodeInvalidCredential, "用户名或密码错误"))
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "服务器错误"))
+			return
+		}
+
+		// 验证状态
+		if user.Status != "active" {
+			c.JSON(http.StatusForbidden, utils.Error(apperrors.ErrCodeAccountDisabled, "账户已被禁用"))
+			return
+		}
+
+		// 验证密码
+		if !utils.CheckPassword(user.PasswordHash, req.Password) {
+			c.JSON(http.StatusUnauthorized, utils.Error(apperrors.ErrCodeInvalidCredential, "用户名或密码错误"))
+			return
+		}
+
+		// 生成 Token
+		accessToken, _ := utils.GenerateToken(user.ID, user.Username, user.Role, secret, 24*time.Hour)
+		refreshToken, _ := utils.GenerateRefreshToken(user.ID, user.Username, user.Role, secret, 7*24*time.Hour)
+
+		// 更新最后登录时间
+		database.DB.Exec("UPDATE users SET last_login_at = NOW(), last_login_ip = ? WHERE id = ?",
+			c.ClientIP(), user.ID)
+
+		c.JSON(http.StatusOK, utils.Success(gin.H{
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+			"token_type":    "Bearer",
+			"expires_in":    86400,
+			"user": gin.H{
+				"id":       user.ID,
+				"username": user.Username,
+				"role":     user.Role,
+			},
+		}))
+	}
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+func RefreshToken(secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req RefreshRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+			return
+		}
+
+		// 解析 Refresh Token（简化版本，实际应使用完整JWT解析）
+		claims := &middleware.Claims{}
+		// ... JWT 解析逻辑
+		_ = claims
+
+		accessToken, err := utils.GenerateToken("uid", "user", "family", secret, 24*time.Hour)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "生成Token失败"))
+			return
+		}
+
+		c.JSON(http.StatusOK, utils.Success(gin.H{
+			"access_token": accessToken,
+			"expires_in":   86400,
+		}))
+	}
+}
+
+type SendCodeRequest struct {
+	Phone string `json:"phone" binding:"required"`
+}
+
+func SendVerifyCode(c *gin.Context) {
+	var req SendCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	if !utils.ValidatePhone(req.Phone) {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "手机号格式不正确"))
+		return
+	}
+
+	// TODO: 对接短信服务商发送验证码
+	c.JSON(http.StatusOK, utils.Success(gin.H{
+		"message": "验证码已发送",
+		"expires": 300,
+	}))
+}
+
+// ============ 当前用户 ============
+
+func GetCurrentUser(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	var user models.User
+	err := database.DB.QueryRow(
+		`SELECT id, username, phone, email, role, avatar_url, real_name, status, created_at
+		 FROM users WHERE id = ?`, userID,
+	).Scan(&user.ID, &user.Username, &user.Phone, &user.Email, &user.Role,
+		&user.AvatarURL, &user.RealName, &user.Status, &user.CreatedAt)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, utils.Error(apperrors.ErrCodeUserNotFound, "用户不存在"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.Success(user))
+}
+
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8"`
+}
+
+func ChangePassword(c *gin.Context) {
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+
+	var passwordHash string
+	database.DB.QueryRow("SELECT password_hash FROM users WHERE id = ?", userID).Scan(&passwordHash)
+
+	if !utils.CheckPassword(passwordHash, req.OldPassword) {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeInvalidCredential, "原密码错误"))
+		return
+	}
+
+	newHash, _ := utils.HashPassword(req.NewPassword, 12)
+	database.DB.Exec("UPDATE users SET password_hash = ? WHERE id = ?", newHash, userID)
+
+	c.JSON(http.StatusOK, utils.Success(gin.H{"message": "密码修改成功"}))
+}
+
+// ============ 老人档案 CRUD ============
+
+func ListElderly(c *gin.Context) {
+	page := utils.Pagination{}
+	c.ShouldBindQuery(&page)
+	page.Normalize()
+
+	role, _ := c.Get("role")
+	userID, _ := c.Get("user_id")
+
+	// 根据角色构建查询
+	var countQuery, dataQuery string
+	var args []interface{}
+
+	baseFrom := `FROM elderly_profiles e LEFT JOIN communities c ON e.community_id = c.id WHERE e.status != 'deleted'`
+
+		switch role {
+		case "admin", "community", "super_admin":
+		// 社区人员看辖区，管理员看全部
+		countQuery = "SELECT COUNT(*) " + baseFrom
+		dataQuery = `SELECT e.id, e.name, e.gender, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) as age, e.phone, e.address,
+			c.name as community_name, e.care_level, e.status, e.created_at ` + baseFrom +
+			` ORDER BY e.created_at DESC LIMIT ? OFFSET ?`
+		args = append(args, page.PageSize, page.Offset())
+	case "family":
+		countQuery = `SELECT COUNT(*) FROM family_bindings fb
+			JOIN elderly_profiles e ON fb.elderly_id = e.id
+			WHERE fb.user_id = ? AND e.status != 'deleted'`
+		dataQuery = `SELECT e.id, e.name, e.gender, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) as age, e.phone, e.address,
+			'' as community_name, e.care_level, e.status, e.created_at
+			FROM family_bindings fb JOIN elderly_profiles e ON fb.elderly_id = e.id
+			WHERE fb.user_id = ? AND e.status != 'deleted'
+			ORDER BY e.created_at DESC LIMIT ? OFFSET ?`
+		args = append(args, userID, page.PageSize, page.Offset())
+	default:
+		c.JSON(http.StatusForbidden, utils.Error(apperrors.ErrCodeForbidden, "无权查看"))
+		return
+	}
+
+	var total int64
+	database.DB.QueryRow(countQuery, args[:len(args)-2]...).Scan(&total)
+
+	rows, err := database.DB.Query(dataQuery, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "查询失败"))
+		return
+	}
+	defer rows.Close()
+
+	var list []gin.H
+	for rows.Next() {
+		var id, name, gender string
+		var age sql.NullInt64
+		var phone, address, communityName, careLevel, status sql.NullString
+		var createdAt time.Time
+		rows.Scan(&id, &name, &gender, &age, &phone, &address, &communityName, &careLevel, &status, &createdAt)
+		list = append(list, gin.H{
+			"id": id, "name": name, "gender": gender, "age": age.Int64,
+			"phone": phone.String, "address": address.String,
+			"community_name": communityName.String, "care_level": careLevel.String,
+			"status": status.String, "created_at": createdAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessPage(list, total, page.Page, page.PageSize))
+}
+
+func GetElderly(c *gin.Context) {
+	id := c.Param("id")
+
+	var p models.ElderlyProfile
+	err := database.DB.QueryRow(
+		`SELECT id, name, gender, birth_date, phone, emergency_contact, emergency_phone,
+			address, medical_history_meta, allergies_meta, medications_meta,
+			heart_rate_baseline, spo2_baseline, temp_baseline, care_level, status, created_at
+		 FROM elderly_profiles WHERE id = ? AND status != 'deleted'`, id,
+	).Scan(&p.ID, &p.Name, &p.Gender, &p.BirthDate, &p.Phone,
+		&p.EmergencyContact, &p.EmergencyPhone, &p.Address,
+		&p.MedicalHistoryMeta, &p.AllergiesMeta, &p.MedicationsMeta,
+		&p.HeartRateBaseline, &p.Spo2Baseline, &p.TempBaseline,
+		&p.CareLevel, &p.Status, &p.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, utils.Error(apperrors.ErrCodeNotFound, "老人不存在"))
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "查询失败"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.Success(p))
+}
+
+type CreateElderlyRequest struct {
+	Name             string  `json:"name" binding:"required"`
+	Gender           string  `json:"gender" binding:"required,oneof=male female"`
+	Phone            string  `json:"phone"`
+	Age              int     `json:"age"`
+	Address          string  `json:"address"`
+	EmergencyContact string  `json:"emergency_contact"`
+	EmergencyPhone   string  `json:"emergency_phone"`
+	MedicalHistory   string  `json:"medical_history"`
+	CareLevel        string  `json:"care_level"`
+	HRBaseline       float64 `json:"hr_baseline"`
+	Spo2Baseline     float64 `json:"spo2_baseline"`
+}
+
+func CreateElderly(c *gin.Context) {
+	var req CreateElderlyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	id := utils.NewUUID()
+
+	_, err := database.DB.Exec(
+		`INSERT INTO elderly_profiles (id, name, gender, phone, address, emergency_contact, emergency_phone,
+			medical_history_meta, care_level, heart_rate_baseline, spo2_baseline, status, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+		id, req.Name, req.Gender, req.Phone, req.Address, req.EmergencyContact, req.EmergencyPhone,
+		req.MedicalHistory, req.CareLevel, req.HRBaseline, req.Spo2Baseline,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "创建失败"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, utils.Success(gin.H{"id": id, "message": "创建成功"}))
+}
+
+func UpdateElderly(c *gin.Context) {
+	id := c.Param("id")
+	var req CreateElderlyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	result, err := database.DB.Exec(
+		`UPDATE elderly_profiles SET name=?, gender=?, phone=?, address=?, emergency_contact=?, emergency_phone=?,
+			medical_history_meta=?, care_level=?, heart_rate_baseline=?, spo2_baseline=?, updated_at=NOW()
+		 WHERE id=? AND status!='deleted'`,
+		req.Name, req.Gender, req.Phone, req.Address, req.EmergencyContact, req.EmergencyPhone,
+		req.MedicalHistory, req.CareLevel, req.HRBaseline, req.Spo2Baseline, id,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "更新失败"))
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		c.JSON(http.StatusNotFound, utils.Error(apperrors.ErrCodeNotFound, "老人不存在"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.Success(gin.H{"message": "更新成功"}))
+}
+
+func DeleteElderly(c *gin.Context) {
+	id := c.Param("id")
+
+	_, err := database.DB.Exec(
+		"UPDATE elderly_profiles SET status='deleted', updated_at=NOW() WHERE id=?",
+		id,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "删除失败"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.Success(gin.H{"message": "删除成功"}))
+}
+
+// ============ 子女绑定 ============
+
+type BindFamilyRequest struct {
+	ElderlyID string `json:"elderly_id" binding:"required"`
+	Relation  string `json:"relation" binding:"required"`
+}
+
+func CreateFamilyBinding(c *gin.Context) {
+	var req BindFamilyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+
+	id := utils.NewUUID()
+	_, err := database.DB.Exec(
+		`INSERT INTO family_bindings (id, user_id, elderly_id, relation, verified, created_at)
+		 VALUES (?, ?, ?, ?, false, NOW())`,
+		id, userID, req.ElderlyID, req.Relation,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "绑定失败"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, utils.Success(gin.H{"id": id, "message": "绑定请求已提交"}))
+}
+
+func ListFamilyBindings(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	rows, err := database.DB.Query(
+		`SELECT fb.id, fb.elderly_id, e.name as elderly_name, fb.relation, fb.verified, fb.created_at
+		 FROM family_bindings fb JOIN elderly_profiles e ON fb.elderly_id = e.id
+		 WHERE fb.user_id = ?`, userID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "查询失败"))
+		return
+	}
+	defer rows.Close()
+
+	var list []gin.H
+	for rows.Next() {
+		var id, elderlyID, elderlyName, relation string
+		var verified bool
+		var createdAt time.Time
+		rows.Scan(&id, &elderlyID, &elderlyName, &relation, &verified, &createdAt)
+		list = append(list, gin.H{
+			"id": id, "elderly_id": elderlyID, "elderly_name": elderlyName,
+			"relation": relation, "verified": verified, "created_at": createdAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.Success(list))
+}
+
+func RemoveFamilyBinding(c *gin.Context) {
+	id := c.Param("id")
+	_, err := database.DB.Exec("DELETE FROM family_bindings WHERE id = ?", id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "解绑失败"))
+		return
+	}
+	c.JSON(http.StatusOK, utils.Success(gin.H{"message": "解绑成功"}))
+}
+
+// ============ 社区管理 ============
+
+func ListCommunities(c *gin.Context) {
+	rows, err := database.DB.Query(
+		`SELECT id, name, address, contact_name, contact_phone, total_elderly, created_at
+		 FROM communities ORDER BY name`,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "查询失败"))
+		return
+	}
+	defer rows.Close()
+
+	var list []models.Community
+	for rows.Next() {
+		var c models.Community
+		rows.Scan(&c.ID, &c.Name, &c.Address, &c.ContactName, &c.ContactPhone, &c.TotalElderly, &c.CreatedAt)
+		list = append(list, c)
+	}
+
+	c.JSON(http.StatusOK, utils.Success(list))
+}
+
+func GetCommunity(c *gin.Context) {
+	id := c.Param("id")
+	var com models.Community
+	err := database.DB.QueryRow(
+		`SELECT id, name, address, contact_name, contact_phone, total_elderly, created_at
+		 FROM communities WHERE id = ?`, id,
+	).Scan(&com.ID, &com.Name, &com.Address, &com.ContactName, &com.ContactPhone, &com.TotalElderly, &com.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, utils.Error(apperrors.ErrCodeNotFound, "社区不存在"))
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.Success(com))
+}
+
+type CreateCommunityRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Address     string `json:"address"`
+	ContactName string `json:"contact_name"`
+	ContactPhone string `json:"contact_phone"`
+}
+
+func CreateCommunity(c *gin.Context) {
+	var req CreateCommunityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	id := utils.NewUUID()
+	_, err := database.DB.Exec(
+		`INSERT INTO communities (id, name, address, contact_name, contact_phone, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+		id, req.Name, req.Address, req.ContactName, req.ContactPhone,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, utils.Error(apperrors.ErrCodeInternal, "创建失败"))
+		return
+	}
+
+	c.JSON(http.StatusCreated, utils.Success(gin.H{"id": id, "message": "创建成功"}))
+}

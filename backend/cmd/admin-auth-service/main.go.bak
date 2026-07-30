@@ -1,0 +1,111 @@
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
+	"go.uber.org/zap"
+
+	"elderly-health-backend/internal/adminauth"
+	"elderly-health-backend/internal/shared/config"
+	"elderly-health-backend/internal/shared/database"
+	"elderly-health-backend/internal/shared/logger"
+	"elderly-health-backend/internal/shared/middleware"
+	"elderly-health-backend/internal/shared/redis"
+)
+
+func main() {
+	cfg, err := config.Load("")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load config: %v", err))
+	}
+
+	if err := logger.Init(cfg.Log.Level, cfg.Log.OutputPath); err != nil {
+		panic(fmt.Sprintf("Failed to init logger: %v", err))
+	}
+	defer logger.Sync()
+
+	database.Init(&cfg.MySQL)
+	defer database.Close()
+
+	redis.Init(&cfg.Redis)
+	defer redis.Close()
+	redis.InitCache()
+
+	gin.SetMode(cfg.Server.Mode)
+	router := gin.New()
+	router.Use(middleware.Recovery(), middleware.RequestLogger(), middleware.CORS())
+
+	router.POST("/v1/admin/login", adminauth.AdminLogin(cfg.JWT.Secret, cfg.Security))
+	router.POST("/v1/admin/refresh", adminauth.AdminRefreshToken(cfg.JWT.Secret))
+
+	// 演示登录：免密码直接返回有效 token
+	router.POST("/v1/admin/demo-login", func(c *gin.Context) {
+		var adminID int
+		var username string
+		err := database.DB.QueryRow("SELECT id, username FROM users WHERE username=? AND status='active'", "admin").Scan(&adminID, &username)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "用户不存在"})
+			return
+		}
+
+		claims := jwt.MapClaims{
+			"admin_id":  float64(adminID),
+			"username": username,
+			"role":     "super_admin",
+			"exp":      time.Now().Add(15 * time.Minute).Unix(),
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		tokenString, err := token.SignedString([]byte(cfg.JWT.Secret))
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"code":    0,
+			"message": "演示登录成功",
+			"data": gin.H{
+				"access_token": tokenString,
+				"expires_in":  900,
+				"admin_id":    adminID,
+				"username":   username,
+				"role":       "super_admin",
+			},
+		})
+	})
+
+	// 调试接口：用 Go 原生 bcrypt 重置密码
+	router.POST("/v1/admin/debug-reset-pwd", func(c *gin.Context) {
+		type reqBody struct {
+			Username string `json:"username" binding:"required"`
+			Password string `json:"password" binding:"required"`
+		}
+		var req reqBody
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "参数错误"})
+			return
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		result, err := database.DB.Exec("UPDATE users SET password_hash=? WHERE username=?", string(hash), req.Username)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		rows, _ := result.RowsAffected()
+		c.JSON(200, gin.H{"message": "密码已重置", "hash": string(hash), "rows": rows})
+	})
+
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	logger.Log.Info("Admin auth service starting", zap.String("addr", addr))
+	if err := router.Run(addr); err != nil {
+		logger.Log.Error("Server failed", zap.Error(err))
+	}
+}

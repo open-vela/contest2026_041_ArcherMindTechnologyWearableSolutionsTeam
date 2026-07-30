@@ -1,0 +1,5 @@
+# AI 老年健康守护系统 - 手表端 MQTT 模拟器依赖
+# 安装: pip install -r requirements.txt
+
+paho-mqtt>=1.6.0
+colorama>=0.4.6  # Windows 终端颜色支持
