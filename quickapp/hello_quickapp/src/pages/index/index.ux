@@ -1,15 +1,992 @@
 <template>
   <div class="container">
-    <text>Hello QuickApp - contest 2026 team 000</text>
+    <scroll scroll-y="true" class="scroll-container">
+      <div class="content">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <text class="time-text">{{ currentTime }}</text>
+          <div class="status-icons">
+            <text class="upload-badge {{ uploadMode }}">{{ uploadMode === 'mqtt' ? 'MQTT' : 'HTTP' }}</text>
+            <text class="data-source-badge {{ dataSource }}">{{ dataSource === 'mock' ? '模拟' : '实时' }}</text>
+            <text class="battery-text">{{ batteryLevel }}%</text>
+            <div class="settings-btn" onclick="onSettingsTap">
+              <image src="/common/images/icons/settings.png" class="settings-icon"></image>
+            </div>
+          </div>
+        </div>
+
+        <!-- SOS 按钮 -->
+        <div class="sos-section">
+          <div class="sos-button" onclick="onSOSPress">
+            <image src="/common/images/icons/sos.png" class="sos-icon"></image>
+            <text class="sos-text">SOS</text>
+          </div>
+        </div>
+
+        <!-- 体征数据卡片 -->
+        <div class="vital-cards">
+          <div class="vital-card" onclick="onVitalTap('heartRate')">
+            <image src="/common/images/icons/heart-rate.png" class="vital-icon"></image>
+            <div class="vital-info">
+              <text class="vital-label">心率</text>
+              <text class="vital-value">{{ heartRateDisplay }}</text>
+            </div>
+            <div class="status-dot {{ heartRateStatus }}"></div>
+          </div>
+
+          <div class="vital-card" onclick="onVitalTap('spo2')">
+            <image src="/common/images/icons/spo2.png" class="vital-icon"></image>
+            <div class="vital-info">
+              <text class="vital-label">血氧</text>
+              <text class="vital-value">{{ spo2Display }}</text>
+            </div>
+            <div class="status-dot {{ spo2Status }}"></div>
+          </div>
+
+          <div class="vital-card" onclick="onVitalTap('temperature')">
+            <image src="/common/images/icons/temperature.png" class="vital-icon"></image>
+            <div class="vital-info">
+              <text class="vital-label">体温</text>
+              <text class="vital-value">{{ temperatureDisplay }}</text>
+            </div>
+            <div class="status-dot {{ temperatureStatus }}"></div>
+          </div>
+        </div>
+
+        <!-- 活动统计 -->
+        <div class="activity-section">
+          <div class="activity-header">
+            <text class="section-title">今日活动</text>
+          </div>
+          <div class="activity-stats">
+            <div class="stat-item">
+              <image src="/common/images/icons/steps.png" class="stat-icon"></image>
+              <text class="stat-value">{{ steps }}</text>
+              <text class="stat-label">步数</text>
+            </div>
+            <div class="stat-item">
+              <text class="stat-value">{{ activeMinutes }}</text>
+              <text class="stat-label">分钟</text>
+            </div>
+            <div class="stat-item">
+              <text class="stat-value">{{ calories }}</text>
+              <text class="stat-label">千卡</text>
+            </div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ progressWidth }}px"></div>
+          </div>
+        </div>
+
+        <!-- 健康提示 -->
+        <div class="health-tip" if="{{ healthTipMessage }}">
+          <text class="tip-text {{ healthTipLevel }}">{{ healthTipMessage }}</text>
+        </div>
+      </div>
+    </scroll>
   </div>
 </template>
 
 <style>
-.container { flex-direction: column; justify-content: center; align-items: center; }
+.container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  background-color: #000000;
+}
+
+.scroll-container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+}
+
+.content {
+  flex-direction: column;
+  padding: 65px;
+  padding-left: 65px;
+  padding-right: 65px;
+}
+
+.status-bar {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.time-text {
+  font-size: 20px;
+  color: #999999;
+}
+
+.status-icons {
+  flex-direction: row;
+  align-items: center;
+}
+
+.battery-text {
+  font-size: 18px;
+  color: #999999;
+  margin-right: 8px;
+}
+
+.settings-btn {
+  width: 28px;
+  height: 28px;
+  justify-content: center;
+  align-items: center;
+}
+
+.settings-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.data-source-badge {
+  font-size: 12px;
+  padding-left: 6px;
+  padding-right: 6px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-radius: 8px;
+  margin-right: 8px;
+}
+
+.data-source-badge.mock {
+  color: #FFFFFF;
+  background-color: #FF9800;
+}
+
+.data-source-badge.real {
+  color: #FFFFFF;
+  background-color: #4CAF50;
+}
+
+.upload-badge {
+  font-size: 12px;
+  padding-left: 6px;
+  padding-right: 6px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-radius: 8px;
+  margin-right: 8px;
+}
+
+.upload-badge.http {
+  color: #FFFFFF;
+  background-color: #2196F3;
+}
+
+.upload-badge.mqtt {
+  color: #FFFFFF;
+  background-color: #4CAF50;
+}
+
+.sos-section {
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.sos-button {
+  width: 80px;
+  height: 40px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  background-color: #FF6B6B;
+  border-radius: 20px;
+}
+
+.sos-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+}
+
+.sos-text {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.vital-cards {
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.vital-card {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.vital-icon {
+  width: 32px;
+  height: 32px;
+  margin-right: 10px;
+}
+
+.vital-info {
+  flex: 1;
+  flex-direction: column;
+}
+
+.vital-label {
+  font-size: 16px;
+  color: #999999;
+}
+
+.vital-value {
+  font-size: 24px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.status-dot.normal {
+  background-color: #4CAF50;
+}
+
+.status-dot.warning {
+  background-color: #FF9800;
+}
+
+.status-dot.danger {
+  background-color: #FF6B6B;
+}
+
+.activity-section {
+  flex-direction: column;
+  width: 100%;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.activity-header {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.activity-stats {
+  flex-direction: row;
+  justify-content: space-around;
+  margin-bottom: 8px;
+}
+
+.stat-item {
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-icon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 22px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #999999;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #333333;
+  border-radius: 3px;
+}
+
+.progress-fill {
+  height: 6px;
+  background-color: #4CAF50;
+  border-radius: 3px;
+}
+
+.health-tip {
+  width: 100%;
+  background-color: #1a1a1a;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.tip-text {
+  font-size: 16px;
+}
+
+.tip-text.info {
+  color: #4CAF50;
+}
+
+.tip-text.warning {
+  color: #FF9800;
+}
+
+.tip-text.danger {
+  color: #FF6B6B;
+}
 </style>
 
 <script>
+import router from '@system.router'
+import storage from '@system.storage'
+import vibrator from '@system.vibrator'
+import { VITAL_RANGES, STORAGE_KEYS, UPLOAD_MODE } from '../../utils/constants'
+import { HealthRulesEngine, FallDetector } from '../../utils/health-rules'
+import SensorService from '../../services/SensorService'
+import DataCache from '../../services/DataCache'
+import UploadService from '../../services/UploadService'
+import AlarmService from '../../services/AlarmService'
+import MqttService from '../../services/MqttService'
+
 export default {
-  data: { msg: 'hello' }
+  private: {
+    // 体征数据
+    heartRate: -1,
+    spo2: -1,
+    temperature: -1,
+    heartRateStatus: 'normal',
+    spo2Status: 'normal',
+    temperatureStatus: 'normal',
+
+    // 活动数据
+    steps: 0,
+    activeMinutes: 0,
+    calories: 0,
+    goalSteps: 6000,
+
+    // 位置数据
+    lastLocation: null,
+
+    // 数据来源
+    dataSource: 'mock',
+
+    // 健康提示
+    healthTipMessage: '',
+    healthTipLevel: 'info',
+
+    // 系统状态
+    isNetworkAvailable: true,
+    batteryLevel: 100,
+    currentTime: '--:--',
+    lastUpdateTime: 0,
+    uploadMode: 'http',       // 当前上传模式
+    mqttConnected: false,     // MQTT 连接状态
+
+    // 定时器
+    dataTimer: null,
+    uploadTimer: null,
+    timeTimer: null,
+
+    // 服务实例
+    sensorService: null,
+    dataCache: null,
+    uploadService: null,
+    alarmService: null,
+    mqttService: null,
+    healthRules: null,
+    fallDetector: null,
+
+    // SOS 长按相关
+    sosPressTimer: null,
+    sosLongPressThreshold: 1500
+  },
+
+  computed: {
+    heartRateDisplay() {
+      return this.heartRate > 0 ? this.heartRate + ' bpm' : '-- bpm'
+    },
+    spo2Display() {
+      return this.spo2 > 0 ? this.spo2 + '%' : '--%'
+    },
+    temperatureDisplay() {
+      return this.temperature > 0 ? this.temperature.toFixed(1) + '°C' : '--°C'
+    },
+    progressWidth() {
+      const progress = Math.min(this.steps / this.goalSteps, 1)
+      return Math.floor(progress * 250)
+    }
+  },
+
+  onInit() {
+    this.initServices()
+    this.loadSettings()
+    this.updateTime()
+  },
+
+  onShow() {
+    // 重新加载设置，确保数据来源配置是最新的
+    this.loadSettings()
+    // 重新加载上传模式（用户可能在设置页修改了）
+    this._loadUploadModeConfig()
+    // 立刻同步当前上传模式（避免异步竞态）
+    if (this.uploadService) {
+      this.uploadMode = this.uploadService.getUploadMode()
+    }
+    // 检查是否有来自设置页的 MQTT 命令
+    this._checkMqttCommand()
+    // 重新初始化传感器服务（如果配置变了会自动切换）
+    this.sensorService.reload({
+      onHeartRate: (data) => {
+        this.heartRate = data.heartRate
+        this.updateHealthStatus()
+        this.cacheVitalData()
+        this.checkAlarms()
+      },
+      onSpO2: (data) => {
+        this.spo2 = data.spo2
+        this.updateHealthStatus()
+        this.cacheVitalData()
+        this.checkAlarms()
+      },
+      onTemperature: (data) => {
+        this.temperature = data.temperature
+        this.updateHealthStatus()
+        this.cacheVitalData()
+        this.checkAlarms()
+      },
+      onAccelerometer: (data) => {
+        this.fallDetector.addAcceleration(data)
+        this.checkFallDetection()
+      },
+      onSteps: (data) => {
+        this.steps = data.steps
+        this.updateActivityStats()
+      },
+      onLocation: (data) => {
+        this.lastLocation = data
+      }
+    })
+    this.dataSource = this.sensorService.getDataSource()
+    this.startTimers()
+  },
+
+  onHide() {
+    this.stopDataCollection()
+    this.stopTimers()
+  },
+
+  onDestroy() {
+    this.stopDataCollection()
+    this.stopTimers()
+    this.cleanupServices()
+  },
+
+  /**
+   * 初始化所有服务
+   */
+  initServices() {
+    // 健康规则引擎
+    this.healthRules = new HealthRulesEngine()
+
+    // 跌倒检测器
+    this.fallDetector = new FallDetector()
+
+    // 数据缓存服务
+    this.dataCache = new DataCache()
+    this.dataCache.init(() => {
+      this.loadCachedData()
+    })
+
+    // 上传服务
+    this.uploadService = new UploadService()
+    this.uploadService.init({
+      onNetworkChange: (available) => {
+        this.isNetworkAvailable = available
+      }
+    })
+
+    // MQTT 服务
+    this.mqttService = new MqttService()
+    this.mqttService.init({
+      onStatusChange: (connected, info) => {
+        this.mqttConnected = connected
+        console.log(`[Index] MQTT 状态: ${info}`)
+        // 写入 storage，供设置页读取
+        storage.set({
+          key: 'mqtt_status',
+          value: JSON.stringify({ connected, info, time: Date.now() }),
+          success: () => {},
+          fail: () => {}
+        })
+        // 连接成功后上报一次在线数据
+        if (connected) {
+          this._publishOnline()
+        }
+      },
+      onError: (error) => {
+        console.error(`[Index] MQTT 错误: ${error}`)
+      }
+    })
+
+    // 绑定 MQTT 到上传服务
+    this.uploadService.setMqttService(this.mqttService)
+
+    // 加载上传模式配置
+    this._loadUploadModeConfig()
+
+    // 报警服务
+    this.alarmService = new AlarmService(this.uploadService)
+    this.alarmService.init({
+      onSOS: (alarmData) => {
+        console.log('SOS 报警已触发')
+      }
+    })
+
+    // 传感器服务
+    this.sensorService = new SensorService()
+    this.sensorService.init(() => {
+      this.dataSource = this.sensorService.getDataSource()
+      console.log(`数据来源: ${this.dataSource === 'mock' ? '模拟数据' : '真实传感器'}`)
+    })
+  },
+
+  /**
+   * 加载上传模式配置（从 storage 读取并同步到 UploadService）
+   */
+  _loadUploadModeConfig() {
+    storage.get({
+      key: STORAGE_KEYS.UPLOAD_MODE,
+      success: (data) => {
+        if (data === UPLOAD_MODE.HTTP || data === UPLOAD_MODE.MQTT) {
+          this.uploadMode = data
+          this.uploadService.setUploadMode(data)
+
+          // MQTT 模式下自动连接
+          if (data === UPLOAD_MODE.MQTT) {
+            console.log('[Index] MQTT 模式，尝试连接...')
+            this.mqttService.connect()
+          }
+        }
+      },
+      fail: () => {}
+    })
+  },
+
+  /**
+   * 检查来自设置页的 MQTT 命令
+   */
+  _checkMqttCommand() {
+    storage.get({
+      key: 'mqtt_cmd',
+      success: (data) => {
+        if (data === 'connect') {
+          console.log('[Index] 收到 MQTT 连接命令')
+          // 清除命令
+          storage.delete({
+            key: 'mqtt_cmd',
+            success: () => {},
+            fail: () => {}
+          })
+          // 执行连接
+          if (this.mqttService && !this.mqttService.isConnected()) {
+            this.mqttService.connect()
+          }
+        }
+      },
+      fail: () => {}
+    })
+  },
+
+  /**
+   * MQTT 连接成功后上报设备在线数据
+   */
+  _publishOnline() {
+    if (!this.mqttService) return
+
+    const { API_CONFIG } = require('../../utils/constants')
+    const { DEVICE_SN, ELDERLY_ID, MQTT_TOPICS } = API_CONFIG
+
+    const packet = {
+      device_sn: DEVICE_SN,
+      elderly_id: ELDERLY_ID,
+      firmware_version: '1.0.0'
+    }
+
+    this.mqttService.publish(MQTT_TOPICS.ONLINE(DEVICE_SN), packet)
+    console.log(`[Index] 设备上线已上报 → device/${DEVICE_SN}/online`)
+  },
+
+  /**
+   * 加载设置
+   */
+  loadSettings() {
+    storage.get({
+      key: STORAGE_KEYS.USER_SETTINGS,
+      success: (data) => {
+        if (data) {
+          try {
+            const settings = JSON.parse(data)
+            this.goalSteps = settings.goalSteps || 6000
+          } catch (e) {
+            console.error('解析设置失败:', e)
+          }
+        }
+      },
+      fail: (data, code) => {
+        console.error(`读取设置失败: code=${code}`)
+      }
+    })
+  },
+
+  /**
+   * 加载缓存数据
+   */
+  loadCachedData() {
+    // 读取最新体征数据
+    const latestVital = this.dataCache.getLatestVital()
+    if (latestVital) {
+      this.heartRate = latestVital.heartRate
+      this.spo2 = latestVital.spo2
+      this.temperature = latestVital.temperature
+      this.updateHealthStatus()
+    }
+
+    // 读取今日活动数据
+    const activity = this.dataCache.getTodayActivity()
+    this.steps = activity.steps
+    this.activeMinutes = activity.activeMinutes
+    this.calories = activity.calories
+  },
+
+  /**
+   * 开始数据采集
+   */
+  startDataCollection() {
+    if (this.sensorService && !this.sensorService.isRunning) {
+      this.sensorService.start({
+        onHeartRate: (data) => {
+          this.heartRate = data.heartRate
+          this.updateHealthStatus()
+          this.cacheVitalData()
+          this.checkAlarms()
+        },
+        onSpO2: (data) => {
+          this.spo2 = data.spo2
+          this.updateHealthStatus()
+          this.cacheVitalData()
+          this.checkAlarms()
+        },
+        onTemperature: (data) => {
+          this.temperature = data.temperature
+          this.updateHealthStatus()
+          this.cacheVitalData()
+          this.checkAlarms()
+        },
+        onAccelerometer: (data) => {
+          this.fallDetector.addAcceleration(data)
+          this.checkFallDetection()
+        },
+        onSteps: (data) => {
+          this.steps = data.steps
+          this.updateActivityStats()
+        },
+        onLocation: (data) => {
+          this.lastLocation = data
+        }
+      })
+    }
+  },
+
+  /**
+   * 停止数据采集
+   */
+  stopDataCollection() {
+    if (this.sensorService && this.sensorService.isRunning) {
+      this.sensorService.stop()
+    }
+  },
+
+  /**
+   * 启动定时器
+   */
+  startTimers() {
+    // 每秒更新时间
+    this.timeTimer = setInterval(() => {
+      this.updateTime()
+    }, 1000)
+
+    // 每30秒上传数据
+    this.uploadTimer = setInterval(() => {
+      this.uploadData()
+    }, 30000)
+  },
+
+  /**
+   * 停止定时器
+   */
+  stopTimers() {
+    if (this.timeTimer) {
+      clearInterval(this.timeTimer)
+      this.timeTimer = null
+    }
+    if (this.uploadTimer) {
+      clearInterval(this.uploadTimer)
+      this.uploadTimer = null
+    }
+  },
+
+  /**
+   * 清理服务
+   */
+  cleanupServices() {
+    if (this.uploadService) {
+      this.uploadService.stop()
+    }
+    if (this.alarmService) {
+      this.alarmService.stop()
+    }
+    if (this.mqttService) {
+      this.mqttService.destroy()
+      this.mqttService = null
+    }
+  },
+
+  /**
+   * 更新活动统计数据
+   */
+  updateActivityStats() {
+    // 根据步数估算卡路里和活跃时间
+    this.calories = Math.round(this.steps * 0.04)
+    this.activeMinutes = Math.round(this.steps / 100)
+  },
+
+  /**
+   * 更新时间显示
+   */
+  updateTime() {
+    const now = new Date()
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    this.currentTime = `${hours}:${minutes}`
+  },
+
+  /**
+   * 更新健康状态
+   */
+  updateHealthStatus() {
+    // 心率状态
+    if (this.heartRate > 0) {
+      if (this.heartRate < VITAL_RANGES.heartRate.dangerLow ||
+          this.heartRate > VITAL_RANGES.heartRate.dangerHigh) {
+        this.heartRateStatus = 'danger'
+      } else if (this.heartRate < VITAL_RANGES.heartRate.warningLow ||
+                 this.heartRate > VITAL_RANGES.heartRate.warningHigh) {
+        this.heartRateStatus = 'warning'
+      } else {
+        this.heartRateStatus = 'normal'
+      }
+    }
+
+    // 血氧状态
+    if (this.spo2 > 0) {
+      if (this.spo2 < VITAL_RANGES.spo2.danger) {
+        this.spo2Status = 'danger'
+      } else if (this.spo2 < VITAL_RANGES.spo2.warning) {
+        this.spo2Status = 'warning'
+      } else {
+        this.spo2Status = 'normal'
+      }
+    }
+
+    // 体温状态
+    if (this.temperature > 0) {
+      if (this.temperature < VITAL_RANGES.temperature.warningLow ||
+          this.temperature > VITAL_RANGES.temperature.warningHigh) {
+        this.temperatureStatus = 'warning'
+      } else {
+        this.temperatureStatus = 'normal'
+      }
+    }
+
+    // 更新健康提示
+    this.updateHealthTip()
+  },
+
+  /**
+   * 更新健康提示
+   */
+  updateHealthTip() {
+    const vitals = {
+      heartRate: this.heartRate,
+      spo2: this.spo2,
+      temperature: this.temperature
+    }
+
+    const tip = this.healthRules.checkVitals(vitals)
+    if (tip) {
+      this.healthTipMessage = tip.message
+      this.healthTipLevel = tip.level
+    } else {
+      this.healthTipMessage = ''
+      this.healthTipLevel = 'info'
+    }
+  },
+
+  /**
+   * 缓存体征数据
+   */
+  cacheVitalData() {
+    if (!this.dataCache) return
+
+    const packet = {
+      heartRate: this.heartRate,
+      spo2: this.spo2,
+      temperature: this.temperature,
+      timestamp: Date.now(),
+      steps: this.steps,
+      isAbnormal: this.heartRateStatus === 'danger' ||
+                  this.spo2Status === 'danger'
+    }
+
+    this.dataCache.addVitalData(packet)
+  },
+
+  /**
+   * 检查是否需要触发报警
+   */
+  checkAlarms() {
+    const vitals = {
+      heartRate: this.heartRate,
+      spo2: this.spo2,
+      temperature: this.temperature
+    }
+
+    const alarm = this.healthRules.shouldTriggerAlarm(vitals)
+    if (alarm) {
+      this.alarmService.triggerAbnormalAlarm(
+        alarm.reason,
+        alarm.level,
+        vitals
+      )
+    }
+  },
+
+  /**
+   * 检查跌倒检测
+   */
+  checkFallDetection() {
+    if (this.fallDetector.checkFall()) {
+      const vitals = {
+        heartRate: this.heartRate,
+        spo2: this.spo2,
+        temperature: this.temperature
+      }
+      this.alarmService.triggerFallAlarm(vitals)
+    }
+  },
+
+  /**
+   * 上传数据到服务器
+   * HTTP: POST /api/v1/vitals/sign
+   * MQTT: device/{sn}/vital
+   */
+  uploadData() {
+    if (!this.uploadService) return
+
+    // 同步电量到 MqttService（心跳上报用）
+    if (this.mqttService && this.batteryLevel >= 0) {
+      this.mqttService.setBatteryLevel(this.batteryLevel)
+    }
+
+    // 直接上传当前体征数据
+    const vitalData = {
+      heartRate: this.heartRate,
+      spo2: this.spo2,
+      temperature: this.temperature,
+      steps: this.steps,
+      timestamp: Date.now()
+    }
+
+    // 仅在有有效数据时上传
+    if (vitalData.heartRate > 0 || vitalData.spo2 > 0) {
+      const modeTag = this.uploadMode === UPLOAD_MODE.MQTT ? '[MQTT]' : '[HTTP]'
+      this.uploadService.uploadVitalSigns(
+        vitalData,
+        () => {
+          console.log(`${modeTag} 体征数据上报成功`)
+        },
+        (error) => {
+          console.error(`${modeTag} 体征数据上报失败:`, error)
+        }
+      )
+    }
+  },
+
+  /**
+   * SOS 按钮按下
+   */
+  onSOSPress() {
+    // 震动提示
+    vibrator.vibrate({
+      mode: 'short',
+      success: () => {},
+      fail: () => {}
+    })
+
+    // 启动长按计时器
+    this.sosPressTimer = setTimeout(() => {
+      this.triggerSOS()
+    }, this.sosLongPressThreshold)
+  },
+
+  /**
+   * 触发 SOS 报警
+   */
+  triggerSOS() {
+    const vitals = {
+      heartRate: this.heartRate,
+      spo2: this.spo2,
+      temperature: this.temperature
+    }
+
+    this.alarmService.triggerSOS(vitals)
+  },
+
+  /**
+   * 体征卡片点击
+   */
+  onVitalTap(type) {
+    router.push({
+      uri: '/pages/health-detail',
+      params: {
+        type: type
+      }
+    })
+  },
+
+  /**
+   * 设置按钮点击
+   */
+  onSettingsTap() {
+    router.push({
+      uri: '/pages/settings'
+    })
+  }
 }
 </script>
