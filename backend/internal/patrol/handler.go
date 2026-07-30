@@ -1,0 +1,178 @@
+package patrol
+
+import (
+	"database/sql"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"elderly-health-backend/internal/shared/database"
+	apperrors "elderly-health-backend/internal/shared/errors"
+	"elderly-health-backend/internal/shared/middleware"
+	"elderly-health-backend/internal/shared/utils"
+)
+
+func RegisterRoutes(r *gin.RouterGroup, jwtSecret string) {
+	auth := r.Group("")
+	auth.Use(middleware.JWTAuth(jwtSecret))
+	{
+		auth.GET("/patrol/tasks", ListTasks)
+		auth.POST("/patrol/tasks", CreateTask)
+		auth.PUT("/patrol/tasks/:id", UpdateTask)
+		auth.POST("/patrol/tasks/:id/assign", AssignTask)
+		auth.POST("/patrol/records", SubmitRecord)
+		auth.GET("/patrol/records", ListRecords)
+		auth.GET("/patrol/staff-load", StaffLoad)
+	}
+}
+
+func ListTasks(c *gin.Context) {
+	page := utils.Pagination{}
+	c.ShouldBindQuery(&page)
+	page.Normalize()
+
+	var total int64
+	database.DB.QueryRow("SELECT COUNT(*) FROM patrol_tasks WHERE status!='completed'").Scan(&total)
+
+	rows, _ := database.DB.Query(
+		`SELECT t.id, t.elderly_id, e.name as elderly_name, t.task_type, t.priority,
+		 u.real_name as assigned_to_name, t.scheduled_date, t.status, t.note, t.created_at
+		 FROM patrol_tasks t JOIN elderly_profiles e ON t.elderly_id=e.id
+		 LEFT JOIN users u ON t.assigned_to=u.id
+		 WHERE t.status!='completed' ORDER BY FIELD(t.priority,'urgent','high','normal','low'), t.scheduled_date
+		 LIMIT ? OFFSET ?`, page.PageSize, page.Offset(),
+	)
+	defer rows.Close()
+
+	var list []gin.H
+	for rows.Next() {
+		var id, eID, eName, tType, priority, status, note string
+		var assignedToName, scheduledDate sql.NullString
+		var createdAt time.Time
+		rows.Scan(&id, &eID, &eName, &tType, &priority, &assignedToName, &scheduledDate, &status, &note, &createdAt)
+		list = append(list, gin.H{
+			"id": id, "elderly_id": eID, "elderly_name": eName,
+			"task_type": tType, "priority": priority,
+			"assigned_name": assignedToName.String, "assigned_to_name": assignedToName.String,
+			"scheduled_date": scheduledDate.String, "status": status,
+			"description": note, "note": note,
+			"created_at": createdAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, utils.SuccessPage(list, total, page.Page, page.PageSize))
+}
+
+type CreateTaskRequest struct {
+	ElderlyID     string `json:"elderly_id" binding:"required"`
+	TaskType      string `json:"task_type" binding:"required"`
+	Priority      string `json:"priority"`
+	ScheduledDate string `json:"scheduled_date"`
+	Note          string `json:"note"`
+	Description   string `json:"description"` // 兼容前端旧字段名
+}
+
+func CreateTask(c *gin.Context) {
+	var req CreateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+	if req.Priority == "" {
+		req.Priority = "normal"
+	}
+	if req.Note == "" && req.Description != "" {
+		req.Note = req.Description
+	}
+
+	id := utils.NewUUID()
+	database.DB.Exec(
+		`INSERT INTO patrol_tasks (id, elderly_id, task_type, priority, scheduled_date, note, status, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?, 'pending', NOW(), NOW())`,
+		id, req.ElderlyID, req.TaskType, req.Priority, req.ScheduledDate, req.Note,
+	)
+	c.JSON(http.StatusCreated, utils.Success(gin.H{"id": id, "message": "任务创建成功"}))
+}
+
+func UpdateTask(c *gin.Context) {
+	id := c.Param("id")
+	var req map[string]interface{}
+	c.ShouldBindJSON(&req)
+	database.DB.Exec("UPDATE patrol_tasks SET status=?, updated_at=NOW() WHERE id=?", req["status"], id)
+	c.JSON(http.StatusOK, utils.Success(gin.H{"message": "更新成功"}))
+}
+
+type AssignRequest struct {
+	StaffID string `json:"staff_id" binding:"required"`
+}
+
+func AssignTask(c *gin.Context) {
+	id := c.Param("id")
+	var req AssignRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+	database.DB.Exec("UPDATE patrol_tasks SET assigned_to=?, status='assigned', updated_at=NOW() WHERE id=?", req.StaffID, id)
+	c.JSON(http.StatusOK, utils.Success(gin.H{"message": "任务已分派"}))
+}
+
+type SubmitRecordRequest struct {
+	TaskID    string `json:"task_id" binding:"required"`
+	ElderlyID string `json:"elderly_id" binding:"required"`
+	HealthNote string `json:"health_note"`
+	MoodScore int    `json:"mood_score"`
+	Photos    string `json:"photos"`
+}
+
+func SubmitRecord(c *gin.Context) {
+	var req SubmitRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, utils.Error(apperrors.ErrCodeBadRequest, "参数错误"))
+		return
+	}
+
+	staffID, _ := c.Get("user_id")
+	id := utils.NewUUID()
+
+	database.DB.Exec(
+		`INSERT INTO patrol_records (id, task_id, elderly_id, staff_id, patrol_type, patrol_at,
+		 health_note, mood_score, photos_json, status, created_at)
+		 VALUES (?,?,?,?,'home_visit',NOW(),?,?,?,'completed',NOW())`,
+		id, req.TaskID, req.ElderlyID, staffID, req.HealthNote, req.MoodScore, req.Photos,
+	)
+
+	// 更新任务状态
+	database.DB.Exec("UPDATE patrol_tasks SET status='completed', updated_at=NOW() WHERE id=?", req.TaskID)
+
+	c.JSON(http.StatusCreated, utils.Success(gin.H{"id": id, "message": "巡访记录已提交"}))
+}
+
+func ListRecords(c *gin.Context) {
+	c.JSON(http.StatusOK, utils.Success([]gin.H{
+		{"message": "巡访记录列表"},
+	}))
+}
+
+func StaffLoad(c *gin.Context) {
+	rows, _ := database.DB.Query(
+		`SELECT u.id, u.real_name, COUNT(t.id) as task_count,
+		 SUM(CASE WHEN t.status='assigned' THEN 1 ELSE 0 END) as in_progress
+		 FROM users u LEFT JOIN patrol_tasks t ON t.assigned_to=u.id AND t.status!='completed'
+		 WHERE u.role IN ('community','admin') GROUP BY u.id, u.real_name`,
+	)
+	defer rows.Close()
+
+	var loads []gin.H
+	for rows.Next() {
+		var id, name string
+		var taskCount, inProgress int
+		rows.Scan(&id, &name, &taskCount, &inProgress)
+		loads = append(loads, gin.H{
+			"staff_id": id, "name": name,
+			"total_tasks": taskCount, "in_progress": inProgress,
+		})
+	}
+	c.JSON(http.StatusOK, utils.Success(loads))
+}

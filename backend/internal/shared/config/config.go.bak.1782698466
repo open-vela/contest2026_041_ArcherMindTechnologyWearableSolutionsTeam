@@ -1,0 +1,152 @@
+package config
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/spf13/viper"
+)
+
+type Config struct {
+	Server   ServerConfig
+	MySQL    MySQLConfig
+	Redis    RedisConfig
+	MQTT     MQTTConfig
+	Security SecurityConfig
+	Log      LogConfig
+	JWT      JWTConfig
+}
+
+type ServerConfig struct {
+	Port             int
+	Mode             string
+	ReadTimeout      time.Duration
+	WriteTimeout     time.Duration
+	ShutdownTimeout  time.Duration
+	JWTSecret        string
+	TokenExpireHours int
+}
+
+type MySQLConfig struct {
+	Host            string
+	Port            int
+	User            string
+	Password        string
+	Database        string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+}
+
+type RedisConfig struct {
+	Host     string
+	Port     int
+	Password string
+	DB       int
+	PoolSize int
+}
+
+type MQTTConfig struct {
+	Broker   string
+	ClientID string
+	Username string
+	Password string
+	QoS      byte
+}
+
+type SecurityConfig struct {
+	RateLimitPerMin  int
+	RateLimitBurst   int
+	IPWhitelist      []string
+	Enable2FA        bool
+	MaxLoginAttempts int
+	LockDuration     time.Duration
+}
+
+type LogConfig struct {
+	Level      string
+	OutputPath string
+}
+
+type JWTConfig struct {
+	Secret         string
+	ExpireHours    int
+	RefreshExpire  int
+}
+
+func (m *MySQLConfig) DSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		m.User, m.Password, m.Host, m.Port, m.Database)
+}
+
+func (r *RedisConfig) Addr() string {
+	return r.Host + ":" + strconv.Itoa(r.Port)
+}
+
+func Load(path string) (*Config, error) {
+	cfg := &Config{}
+	cfg.setDefaults()
+
+	v := viper.New()
+	if path != "" {
+		v.SetConfigFile(path)
+		if err := v.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		}
+	}
+
+	v.SetEnvPrefix("EHC")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("解析配置失败: %w", err)
+	}
+
+	return cfg, nil
+}
+
+func (c *Config) setDefaults() {
+	c.Server.Port = 8080
+	c.Server.Mode = "release"
+	c.Server.ReadTimeout = 10 * time.Second
+	c.Server.WriteTimeout = 10 * time.Second
+	c.Server.ShutdownTimeout = 10 * time.Second
+	c.Server.JWTSecret = "elderly-health-care-secret-key-2024"
+	c.Server.TokenExpireHours = 24
+
+	c.MySQL.Host = "mysql"
+	c.MySQL.Port = 3306
+	c.MySQL.User = "root"
+	c.MySQL.Database = "elderly_health"
+	c.MySQL.MaxOpenConns = 100
+	c.MySQL.MaxIdleConns = 10
+	c.MySQL.ConnMaxLifetime = time.Hour
+
+	c.Redis.Host = "redis"
+	c.Redis.Port = 6379
+	c.Redis.Password = ""
+	c.Redis.DB = 0
+	c.Redis.PoolSize = 10
+
+	c.MQTT.Broker = "tcp://emqx:1883"
+	c.MQTT.ClientID = "elderly-care-server"
+	c.MQTT.Username = ""
+	c.MQTT.Password = ""
+	c.MQTT.QoS = 1
+
+	c.Security.RateLimitPerMin = 60
+	c.Security.RateLimitBurst = 10
+	c.Security.Enable2FA = false
+	c.Security.MaxLoginAttempts = 5
+	c.Security.LockDuration = 15 * time.Minute
+
+	c.Log.Level = "info"
+	c.Log.OutputPath = "/app/logs/app.log"
+
+	c.JWT.Secret = "elderly-health-care-jwt-secret-2024"
+	c.JWT.ExpireHours = 24
+	c.JWT.RefreshExpire = 168
+}
