@@ -1,0 +1,156 @@
+import { useEffect, useState, useCallback } from 'react';
+import { Table, Card, Button, Input, Select, Tag, Space, Typography, Progress, message, Modal, Descriptions, Row, Col, Statistic } from 'antd';
+import { ReloadOutlined, ApiOutlined, WarningOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import { mockService } from '@/mock/service';
+import type { Device } from '@/types';
+import dayjs from 'dayjs';
+import { useWSStore, WS_EVENTS } from '@/store/wsStore';
+
+const { Title, Text } = Typography;
+
+export default function DeviceManage() {
+  const [data, setData] = useState<Device[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<string>();
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [currentItem, setCurrentItem] = useState<Device | null>(null);
+  const pageSize = 8;
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await mockService.getDevices({ page, page_size: pageSize, status });
+      setData(res.data.list);
+      setTotal(res.data.total);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, status, pageSize]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // 监听 WebSocket 设备在线事件
+  useEffect(() => {
+    const handleDeviceOnline = (event: CustomEvent) => {
+      console.log('[DeviceManage] Device online event received:', event.detail);
+      // 自动刷新设备列表（防抖：1秒内只刷新一次）
+      loadData();
+    };
+
+    window.addEventListener(WS_EVENTS.DEVICE_ONLINE, handleDeviceOnline as EventListener);
+
+    return () => {
+      window.removeEventListener(WS_EVENTS.DEVICE_ONLINE, handleDeviceOnline as EventListener);
+    };
+  }, [loadData]);
+
+  const statusMap: Record<string, { color: string; text: string }> = {
+    online: { color: 'green', text: '在线' },
+    offline: { color: 'default', text: '离线' },
+    sleep: { color: 'blue', text: '休眠' },
+    alarming: { color: 'red', text: '报警中' },
+  };
+
+  const columns: ColumnsType<Device> = [
+    { title: '设备SN', dataIndex: 'device_sn', width: 180 },
+    { title: '型号', dataIndex: 'model', width: 90 },
+    { title: '绑定老人', dataIndex: 'elderly_name', width: 90 },
+    { title: '固件版本', dataIndex: 'firmware_version', width: 100 },
+    {
+      title: '电量', dataIndex: 'battery_level', width: 100,
+      render: (v: number) => (
+        <Progress percent={v} size="small"
+          strokeColor={v > 60 ? '#52c41a' : v > 20 ? '#faad14' : '#ff4d4f'}
+          format={(p) => `${p}%`}
+        />
+      ),
+    },
+    {
+      title: '信号', dataIndex: 'signal_strength', width: 70,
+      render: (v: number) => '📶'.repeat(Math.min(v, 5)) || '无信号',
+    },
+    {
+      title: '状态', dataIndex: 'status', width: 100,
+      render: (v: string) => (
+        <span>
+          {v === 'online' && <span style={{ marginRight: 4 }}>📶</span>}
+          <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag>
+        </span>
+      ),
+    },
+    {
+      title: '最后心跳', dataIndex: 'last_heartbeat_at', width: 140,
+      render: (v: string) => <Text type="secondary">{dayjs(v).format('MM-DD HH:mm:ss')}</Text>,
+    },
+    {
+      title: '操作', width: 160, render: (_, r) => (
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => { setCurrentItem(r); setDetailVisible(true); }}>详情</Button>
+          <Button type="link" size="small" onClick={() => message.success('OTA升级指令已下发')}>OTA</Button>
+          <Button type="link" size="small" danger onClick={() => message.success('重启指令已下发')}>重启</Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const summary = {
+    total: total,
+    online: data.filter((d) => d.status === 'online').length,
+    offline: data.filter((d) => d.status === 'offline').length,
+    alarming: data.filter((d) => d.status === 'alarming').length,
+  };
+
+  return (
+    <div>
+      <Title level={4}>设备管理</Title>
+
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={6}><Card size="small"><Statistic title="设备总数" value={summary.total} prefix={<ApiOutlined />} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="在线" value={summary.online} valueStyle={{ color: '#52c41a' }} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="离线" value={summary.offline} valueStyle={{ color: '#8c8c8c' }} /></Card></Col>
+        <Col span={6}><Card size="small"><Statistic title="报警中" value={summary.alarming} valueStyle={{ color: '#ff4d4f' }} prefix={<WarningOutlined />} /></Card></Col>
+      </Row>
+
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16} align="middle">
+          <Col flex="auto">
+            <Select
+              allowClear placeholder="状态筛选" value={status} onChange={(v) => { setStatus(v); setPage(1); }}
+              options={[
+                { value: 'online', label: '在线' }, { value: 'offline', label: '离线' },
+                { value: 'sleep', label: '休眠' }, { value: 'alarming', label: '报警中' },
+              ]}
+              style={{ width: 150 }}
+            />
+          </Col>
+          <Col><Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button></Col>
+        </Row>
+      </Card>
+
+      <Table dataSource={data} columns={columns} rowKey="id" loading={loading}
+        pagination={{ current: page, total, pageSize, onChange: (p) => setPage(p) }} />
+
+      <Modal title="设备详情" open={detailVisible} onCancel={() => { setDetailVisible(false); setCurrentItem(null); }} footer={null} width={560}>
+        {currentItem && (
+          <Descriptions bordered column={2} size="small">
+            <Descriptions.Item label="设备SN">{currentItem.device_sn}</Descriptions.Item>
+            <Descriptions.Item label="设备名称">{currentItem.device_name}</Descriptions.Item>
+            <Descriptions.Item label="型号">{currentItem.model}</Descriptions.Item>
+            <Descriptions.Item label="固件">{currentItem.firmware_version}</Descriptions.Item>
+            <Descriptions.Item label="绑定老人">{currentItem.elderly_name}</Descriptions.Item>
+            <Descriptions.Item label="状态"><Tag color={statusMap[currentItem.status]?.color}>{statusMap[currentItem.status]?.text}</Tag></Descriptions.Item>
+            <Descriptions.Item label="电量">{currentItem.battery_level}%</Descriptions.Item>
+            <Descriptions.Item label="信号">{currentItem.signal_strength} 格</Descriptions.Item>
+            <Descriptions.Item label="SIM卡">{currentItem.sim_iccid}</Descriptions.Item>
+            <Descriptions.Item label="激活时间">{dayjs(currentItem.activated_at).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
+            <Descriptions.Item label="最后心跳">{dayjs(currentItem.last_heartbeat_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="位置">{currentItem.location_lat.toFixed(4)}, {currentItem.location_lng.toFixed(4)}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+    </div>
+  );
+}
