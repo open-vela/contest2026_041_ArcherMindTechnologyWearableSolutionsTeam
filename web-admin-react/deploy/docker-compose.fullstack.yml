@@ -1,0 +1,48 @@
+# ============================================================
+# 全栈集成部署 - 追加到后端 docker-compose.yml
+# 在后端 services 基础上添加前端 Web 管理台容器
+#
+# 使用方式（从 outputs 目录执行）:
+#   docker compose \
+#     -f backend/deploy/docker-compose.yml \
+#     -f web-admin-react/deploy/docker-compose.fullstack.yml \
+#     up -d
+#
+# 或者使用一键脚本:
+#   bash web-admin-react/deploy/deploy.sh --mode fullstack
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ============ 前端 Web 管理台 ============
+  web-admin:
+    build:
+      context: ../web-admin-react
+      dockerfile: deploy/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_WS_URL: ws://localhost:80/ws
+        VITE_APP_TITLE: AI老年健康守护系统
+    container_name: ehc-web-admin
+    restart: always
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # ============ 修改 API 网关：增加前端静态文件服务 ============
+  # 如果想用同一个 Nginx 同时服务前端和代理 API（即去掉单独的 web-admin 容器），
+  # 取消下面 api-gateway 的注释，并将 web-admin 的 ports 注释掉。
+  #
+  # api-gateway:
+  #   volumes:
+  #     - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ../web-admin-react/dist:/usr/share/nginx/html:ro     # 挂载前端构建产物
+  #   # 端口不变，80 同时提供前端和 API 代理
