@@ -1,0 +1,499 @@
+<template>
+  <scroll scroll-y="true" class="page">
+    <div class="container">
+
+      <!-- 返回按钮 -->
+      <div class="header-row">
+        <input type="button" class="back-btn" value="返回" onclick="goBack" />
+      </div>
+
+      <!-- 页面标题 -->
+      <text class="title">设置</text>
+
+      <!-- 设置列表 -->
+      <div class="settings-list">
+
+        <!-- 目标步数 -->
+        <div class="setting-item">
+          <text class="setting-label">目标步数</text>
+          <div class="setting-value-row">
+            <input type="button" class="value-btn" value="-" onclick="decreaseGoal" />
+            <text class="setting-value">{{goalSteps}}</text>
+            <input type="button" class="value-btn" value="+" onclick="increaseGoal" />
+          </div>
+        </div>
+
+        <!-- 屏幕亮度 -->
+        <div class="setting-item">
+          <text class="setting-label">屏幕亮度</text>
+          <slider class="brightness-slider" value="{{brightness}}" min="10" max="100" onchange="onBrightnessChange" />
+        </div>
+
+        <!-- 采集间隔 -->
+        <div class="setting-item">
+          <text class="setting-label">采集间隔</text>
+          <div class="setting-value-row">
+            <input type="button" class="value-btn" value="-" onclick="decreaseInterval" />
+            <text class="setting-value">{{collectInterval}}秒</text>
+            <input type="button" class="value-btn" value="+" onclick="increaseInterval" />
+          </div>
+        </div>
+
+        <!-- SOS 功能开关 -->
+        <div class="setting-item">
+          <text class="setting-label">SOS 功能</text>
+          <switch checked="{{sosEnabled}}" onchange="onSosToggle" />
+        </div>
+
+        <!-- 跌倒检测开关 -->
+        <div class="setting-item">
+          <text class="setting-label">跌倒检测</text>
+          <switch checked="{{fallDetection}}" onchange="onFallDetectionToggle" />
+        </div>
+
+        <!-- 数据来源 -->
+        <div class="setting-item">
+          <text class="setting-label">模拟数据</text>
+          <switch checked="{{useMockData}}" onchange="onMockDataToggle" />
+        </div>
+
+        <!-- 模拟数据模式 -->
+        <div class="setting-item" if="{{ useMockData }}">
+          <text class="setting-label">模拟模式</text>
+          <div class="setting-value-row">
+            <input type="button" class="mode-btn {{ mockMode === 'normal' ? 'mode-active' : '' }}" value="正常" onclick="setMockMode('normal')" />
+            <input type="button" class="mode-btn {{ mockMode === 'abnormal' ? 'mode-active' : '' }}" value="异常" onclick="setMockMode('abnormal')" />
+            <input type="button" class="mode-btn {{ mockMode === 'fall' ? 'mode-active' : '' }}" value="跌倒" onclick="setMockMode('fall')" />
+          </div>
+        </div>
+
+        <!-- 上传模式 (调试开关) -->
+        <div class="setting-item">
+          <text class="setting-label">上传模式</text>
+          <div class="setting-value-row">
+            <input type="button" class="upload-mode-btn {{ uploadMode === 'http' ? 'upload-active upload-http' : '' }}" value="HTTP" onclick="setUploadMode('http')" />
+            <input type="button" class="upload-mode-btn {{ uploadMode === 'mqtt' ? 'upload-active upload-mqtt' : '' }}" value="MQTT" onclick="setUploadMode('mqtt')" />
+          </div>
+        </div>
+
+        <!-- MQTT 连接状态（仅在 MQTT 模式显示） -->
+        <div class="setting-item" if="{{ uploadMode === 'mqtt' }}">
+          <text class="setting-label">MQTT 状态</text>
+          <text class="mqtt-status {{ mqttConnected ? 'mqtt-online' : 'mqtt-offline' }}">
+            {{ mqttConnected ? '已连接' : '未连接' }}
+          </text>
+        </div>
+
+      </div>
+
+      <!-- 保存按钮 -->
+      <input type="button" class="save-btn" value="保存设置" onclick="saveSettings" />
+
+      <!-- 应用信息 -->
+      <div class="app-info">
+        <text class="info-text">银发守护 v1.0.0</text>
+      </div>
+
+    </div>
+  </scroll>
+</template>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  background-color: #000000;
+}
+
+.container {
+  flex-direction: column;
+  padding-top: 65px;
+  padding-bottom: 65px;
+  padding-left: 65px;
+  padding-right: 65px;
+}
+
+.header-row {
+  flex-direction: row;
+  margin-bottom: 12px;
+}
+
+.back-btn {
+  width: 80px;
+  height: 32px;
+  background-color: #333333;
+  border-radius: 16px;
+  font-size: 18px;
+  color: #FFFFFF;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #FFFFFF;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.settings-list {
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.setting-item {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background-color: #1A1A1A;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.setting-label {
+  font-size: 18px;
+  color: #FFFFFF;
+}
+
+.setting-value-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.value-btn {
+  width: 32px;
+  height: 32px;
+  background-color: #333333;
+  border-radius: 16px;
+  font-size: 18px;
+  color: #FFFFFF;
+}
+
+.setting-value {
+  font-size: 18px;
+  color: #FFFFFF;
+  margin-left: 10px;
+  margin-right: 10px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.brightness-slider {
+  width: 120px;
+  height: 32px;
+}
+
+.setting-value-text {
+  font-size: 16px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: 10px;
+}
+
+.setting-value-text.mock {
+  color: #FFFFFF;
+  background-color: #FF9800;
+}
+
+.setting-value-text.real {
+  color: #FFFFFF;
+  background-color: #4CAF50;
+}
+
+.mode-btn {
+  flex: 1;
+  height: 32px;
+  background-color: #333333;
+  border-radius: 16px;
+  font-size: 14px;
+  color: #888888;
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
+.mode-btn.mode-active {
+  background-color: #4CAF50;
+  color: #FFFFFF;
+}
+
+.upload-mode-btn {
+  width: 70px;
+  height: 32px;
+  background-color: #333333;
+  border-radius: 16px;
+  font-size: 14px;
+  color: #888888;
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
+.upload-mode-btn.upload-active {
+  color: #FFFFFF;
+}
+
+.upload-mode-btn.upload-active.upload-http {
+  background-color: #2196F3;
+}
+
+.upload-mode-btn.upload-active.upload-mqtt {
+  background-color: #4CAF50;
+}
+
+.mqtt-status {
+  font-size: 14px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: 10px;
+}
+
+.mqtt-status.mqtt-online {
+  color: #FFFFFF;
+  background-color: #4CAF50;
+}
+
+.mqtt-status.mqtt-offline {
+  color: #FFFFFF;
+  background-color: #FF9800;
+}
+
+.save-btn {
+  width: 100%;
+  height: 40px;
+  background-color: #4CAF50;
+  border-radius: 20px;
+  font-size: 20px;
+  color: #FFFFFF;
+  margin-bottom: 16px;
+}
+
+.app-info {
+  flex-direction: column;
+  align-items: center;
+}
+
+.info-text {
+  font-size: 14px;
+  color: #888888;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import brightness from '@system.brightness'
+import prompt from '@system.prompt'
+
+export default {
+  private: {
+    goalSteps: 6000,
+    brightness: 80,
+    collectInterval: 5,
+    sosEnabled: true,
+    fallDetection: true,
+    useMockData: true,
+    mockMode: 'normal',
+    // 上传模式
+    uploadMode: 'http',
+    mqttConnected: false
+  },
+
+  onInit() {
+    this.loadSettings()
+    this.loadUploadMode()
+    this.loadMqttStatus()
+  },
+
+  onShow() {
+    // 每次显示时刷新 MQTT 状态
+    this.loadMqttStatus()
+  },
+
+  loadSettings() {
+    storage.get({
+      key: 'user_settings',
+      success: (data) => {
+        if (data) {
+          const settings = JSON.parse(data)
+          this.goalSteps = settings.goalSteps || 6000
+          this.brightness = settings.brightness || 80
+          this.collectInterval = settings.collectInterval || 5
+          this.sosEnabled = settings.sosEnabled !== false
+          this.fallDetection = settings.fallDetection !== false
+          this.useMockData = settings.useMockData !== false
+          this.mockMode = settings.mockMode || 'normal'
+        }
+      },
+      fail: (data, code) => {
+        console.error('加载设置失败:', code)
+      }
+    })
+  },
+
+  /**
+   * 加载上传模式
+   */
+  loadUploadMode() {
+    storage.get({
+      key: 'upload_mode',
+      success: (data) => {
+        if (data === 'http' || data === 'mqtt') {
+          this.uploadMode = data
+        }
+      },
+      fail: () => {}
+    })
+  },
+
+  /**
+   * 加载 MQTT 连接状态（由首页 MqttService 写入 storage）
+   */
+  loadMqttStatus() {
+    storage.get({
+      key: 'mqtt_status',
+      success: (data) => {
+        if (data) {
+          try {
+            const status = JSON.parse(data)
+            this.mqttConnected = status.connected === true
+          } catch (e) {
+            this.mqttConnected = false
+          }
+        }
+      },
+      fail: () => {}
+    })
+  },
+
+  /**
+   * 切换上传模式（调试开关）
+   */
+  setUploadMode(mode) {
+    this.uploadMode = mode
+
+    // 持久化上传模式
+    storage.set({
+      key: 'upload_mode',
+      value: mode,
+      success: () => {
+        // 切到 MQTT 时，发送连接命令给首页
+        if (mode === 'mqtt') {
+          storage.set({
+            key: 'mqtt_cmd',
+            value: 'connect',
+            success: () => {},
+            fail: () => {}
+          })
+        }
+
+        prompt.showToast({
+          message: mode === 'mqtt' ? '已切换到 MQTT 模式' : '已切换到 HTTP 模式',
+          duration: 1500
+        })
+      },
+      fail: (data, code) => {
+        console.error('保存上传模式失败:', code)
+      }
+    })
+  },
+
+  increaseGoal() {
+    if (this.goalSteps < 20000) {
+      this.goalSteps += 1000
+    }
+  },
+
+  decreaseGoal() {
+    if (this.goalSteps > 1000) {
+      this.goalSteps -= 1000
+    }
+  },
+
+  onBrightnessChange(evt) {
+    this.brightness = evt.value
+    brightness.setValue({
+      value: this.brightness,
+      success: () => {
+        console.log('亮度设置成功')
+      },
+      fail: (data, code) => {
+        console.error('亮度设置失败:', code)
+      }
+    })
+  },
+
+  increaseInterval() {
+    if (this.collectInterval < 30) {
+      this.collectInterval += 5
+    }
+  },
+
+  decreaseInterval() {
+    if (this.collectInterval > 5) {
+      this.collectInterval -= 5
+    }
+  },
+
+  onSosToggle(evt) {
+    this.sosEnabled = evt.checked
+  },
+
+  onFallDetectionToggle(evt) {
+    this.fallDetection = evt.checked
+  },
+
+  onMockDataToggle(evt) {
+    this.useMockData = evt.checked
+  },
+
+  setMockMode(mode) {
+    this.mockMode = mode
+  },
+
+  saveSettings() {
+    const settings = {
+      goalSteps: this.goalSteps,
+      brightness: this.brightness,
+      collectInterval: this.collectInterval,
+      sosEnabled: this.sosEnabled,
+      fallDetection: this.fallDetection,
+      useMockData: this.useMockData,
+      mockMode: this.mockMode
+    }
+
+    storage.set({
+      key: 'user_settings',
+      value: JSON.stringify(settings),
+      success: () => {
+        // 同时保存上传模式
+        storage.set({
+          key: 'upload_mode',
+          value: this.uploadMode,
+          success: () => {},
+          fail: () => {}
+        })
+
+        prompt.showToast({
+          message: '设置已保存',
+          duration: 2000
+        })
+      },
+      fail: (data, code) => {
+        console.error('保存设置失败:', code)
+        prompt.showToast({
+          message: '保存失败，请重试',
+          duration: 2000
+        })
+      }
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
