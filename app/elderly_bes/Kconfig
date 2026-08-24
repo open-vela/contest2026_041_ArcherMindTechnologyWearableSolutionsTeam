@@ -1,0 +1,58 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+menuconfig EXAMPLES_ELDERLY_BES
+	tristate "Elderly Health Care App (BES2800)"
+	default n
+	depends on GRAPHICS_LVGL
+	---help---\
+		LVGL-based elderly health monitoring and SOS alarm application\
+		for BES2800 (best1700_ep) round smartwatch platform.
+
+if EXAMPLES_ELDERLY_BES
+
+config EXAMPLES_ELDERLY_BES_PRIORITY
+	int "Elderly app task priority"
+	default 100
+
+config EXAMPLES_ELDERLY_BES_STACKSIZE
+	int "Elderly app stack size"
+	default 65536
+
+config EXAMPLES_ELDERLY_BES_INPUT_DEVPATH
+	string "Touchscreen device path"
+	default "/dev/input0"
+	depends on INPUT_TOUCHSCREEN
+	---help---\
+		The path to the touchscreen device.
+
+config EXAMPLES_ELDERLY_BES_SCREEN_WIDTH
+	int "Screen width in pixels"
+	default 454
+	---help---\
+		Width of the display in pixels. BES2800 RM69330 = 454.
+
+config EXAMPLES_ELDERLY_BES_SCREEN_HEIGHT
+	int "Screen height in pixels"
+	default 454
+	---help---\
+		Height of the display in pixels. BES2800 RM69330 = 454 (round).
+
+config EXAMPLES_ELDERLY_BES_SERVER_URL
+	string "Backend server URL"
+	default "http://101.35.231.154/api/v1"
+	---help---\
+		Base URL of the elderly health backend API.
+
+config EXAMPLES_ELDERLY_BES_DEVICE_SN
+	string "Device serial number"
+	default "EH-WATCH-BES2800"
+	---help---\
+		Unique device serial number for identification.
+
+config EXAMPLES_ELDERLY_BES_DEFAULT_INTERVAL
+	int "Default data collection interval (seconds)"
+	default 10
+
+endif # EXAMPLES_ELDERLY_BES
