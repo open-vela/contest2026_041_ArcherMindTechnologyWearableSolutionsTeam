@@ -18,6 +18,7 @@
 
 #include "ui_index.h"
 #include "ui_manager.h"
+#include "sensor_manager.h"
 #include "data_collector.h"
 
 /****************************************************************************
@@ -43,6 +44,7 @@ static lv_obj_t *g_status_label;
 static lv_obj_t *g_status_bar;
 static lv_obj_t *g_battery_label;
 static lv_obj_t *g_conn_label;
+static lv_obj_t *g_posture_label;
 
 static lv_obj_t *g_hr_dot;
 static lv_obj_t *g_spo2_dot;
@@ -93,7 +95,7 @@ static void sos_btn_press_cb(lv_event_t *e)
 {
   lv_event_code_t code = lv_event_get_code(e);
 
-  if (code == LV_EVENT_LONG_PRESSED)
+  if (code == LV_EVENT_LONG_PRESSED || code == LV_EVENT_CLICKED)
     {
       data_collector_trigger_sos();
     }
@@ -144,10 +146,10 @@ static lv_obj_t *create_sos_button(lv_obj_t *parent)
   lv_obj_set_style_text_font(inst_text, &lv_font_montserrat_14, 0);
   lv_obj_align(inst_text, LV_ALIGN_CENTER, 0, 16);
 
-  /* Long press event */
+  /* Press and click events */
 
   lv_obj_add_event_cb(btn, sos_btn_press_cb, LV_EVENT_LONG_PRESSED, NULL);
-  lv_obj_add_event_cb(btn, sos_btn_press_cb, LV_EVENT_PRESSED, NULL);
+  lv_obj_add_event_cb(btn, sos_btn_press_cb, LV_EVENT_CLICKED, NULL);
 
   return cont;
 }
@@ -249,6 +251,14 @@ static lv_obj_t *create_step_section(lv_obj_t *parent)
   lv_obj_set_style_text_color(act_label, COLOR_TEXT_SECONDARY, 0);
   lv_obj_set_style_text_font(act_label, &lv_font_montserrat_14, 0);
   lv_obj_align(act_label, LV_ALIGN_TOP_LEFT, 0, 0);
+
+  /* Posture label (姿态) */
+
+  g_posture_label = lv_label_create(cont);
+  lv_label_set_text(g_posture_label, LV_SYMBOL_HOME " Standing");
+  lv_obj_set_style_text_color(g_posture_label, COLOR_BLUE, 0);
+  lv_obj_set_style_text_font(g_posture_label, &lv_font_montserrat_14, 0);
+  lv_obj_align(g_posture_label, LV_ALIGN_TOP_MID, 0, 0);
 
   /* Step count label */
 
@@ -397,9 +407,16 @@ void ui_index_update_steps(void)
 void ui_index_update_health_status(void)
 {
   app_context_t *ctx = app_get_context();
+  const sensor_data_t *sensor = sensor_manager_get();
   bool abnormal = data_collector_check_abnormal(&ctx->vitals);
 
-  if (abnormal)
+  if (sensor->fall_detected)
+    {
+      lv_label_set_text(g_status_label,
+                         LV_SYMBOL_WARNING " FALL DETECTED!");
+      lv_obj_set_style_text_color(g_status_label, COLOR_RED, 0);
+    }
+  else if (abnormal)
     {
       lv_label_set_text(g_status_label,
                          LV_SYMBOL_WARNING " Abnormal vitals");
@@ -410,5 +427,26 @@ void ui_index_update_health_status(void)
       lv_label_set_text(g_status_label,
                          LV_SYMBOL_OK " All vitals normal");
       lv_obj_set_style_text_color(g_status_label, COLOR_GREEN, 0);
+    }
+
+  /* Update posture display */
+
+  if (g_posture_label && sensor->posture_name)
+    {
+      const char *icon;
+      switch (sensor->posture)
+        {
+          case POSTURE_WALKING:   icon = LV_SYMBOL_PLAY; break;
+          case POSTURE_RUNNING:   icon = LV_SYMBOL_PLAY; break;
+          case POSTURE_STANDING:  icon = LV_SYMBOL_HOME; break;
+          case POSTURE_SITTING:   icon = LV_SYMBOL_HOME; break;
+          case POSTURE_LYING_FLAT:
+          case POSTURE_LYING_SIDE: icon = LV_SYMBOL_PAUSE; break;
+          default:                icon = LV_SYMBOL_REFRESH; break;
+        }
+
+      char buf[32];
+      snprintf(buf, sizeof(buf), "%s %s", icon, sensor->posture_name);
+      lv_label_set_text(g_posture_label, buf);
     }
 }

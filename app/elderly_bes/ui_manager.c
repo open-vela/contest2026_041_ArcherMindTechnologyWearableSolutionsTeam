@@ -12,6 +12,7 @@
 #include "ui_index.h"
 #include "ui_health_detail.h"
 #include "ui_settings.h"
+#include "ui_wifi.h"
 #include "ui_sos.h"
 
 /****************************************************************************
@@ -83,6 +84,7 @@ void ui_manager_init(void)
   g_pages[PAGE_INDEX] = ui_index_create(g_layer);
   g_pages[PAGE_HEALTH_DETAIL] = ui_health_detail_create(g_layer);
   g_pages[PAGE_SETTINGS] = ui_settings_create(g_layer);
+  g_pages[PAGE_WIFI] = ui_wifi_create(g_layer);
   g_pages[PAGE_SOS] = ui_sos_create(g_layer);
 
   /* Hide all except the first page */
@@ -131,6 +133,13 @@ void ui_manager_switch_page(page_id_t page)
   if (page == PAGE_HEALTH_DETAIL)
     {
       ui_health_detail_update();
+    }
+
+  /* Refresh WiFi status when entering WiFi page */
+
+  if (page == PAGE_WIFI)
+    {
+      ui_wifi_refresh();
     }
 }
 

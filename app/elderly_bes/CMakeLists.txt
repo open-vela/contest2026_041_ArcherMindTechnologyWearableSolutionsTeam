@@ -20,5 +20,10 @@ if(CONFIG_EXAMPLES_ELDERLY_BES)
     ui_index.c
     ui_health_detail.c
     ui_settings.c
-    ui_sos.c)
+    ui_wifi.c
+    ui_sos.c
+    wifi_manager.c
+    http_upload.c
+    sensor_manager.c
+    data_collector.c)
 endif()
