@@ -22,6 +22,13 @@
 void data_collector_init(void);
 
 /**
+ * 更新传感器数据到全局上下文。
+ * 主循环中每帧调用一次。
+ */
+
+void data_collector_update(void);
+
+/**
  * Stop the data collector.
  */
 

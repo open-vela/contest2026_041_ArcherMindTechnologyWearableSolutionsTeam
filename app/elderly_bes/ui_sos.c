@@ -13,6 +13,7 @@
 #include "ui_sos.h"
 #include "ui_manager.h"
 #include "data_collector.h"
+#include "sensor_manager.h"
 #include <stdio.h>
 
 /****************************************************************************
@@ -161,7 +162,7 @@ lv_obj_t *ui_sos_create(lv_obj_t *parent)
   g_alarm_title = lv_label_create(page);
   lv_label_set_text(g_alarm_title, "ALARM TRIGGERED");
   lv_obj_set_style_text_color(g_alarm_title, COLOR_RED, 0);
-  lv_obj_set_style_text_font(g_alarm_title, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_font(g_alarm_title, &lv_font_montserrat_20, 0);
   lv_obj_align(g_alarm_title, LV_ALIGN_TOP_MID, 0, top_y);
 
   /* Countdown number */
@@ -282,6 +283,17 @@ void ui_sos_activate(const char *alarm_type)
   char buf[16];
   snprintf(buf, sizeof(buf), "%d", SOS_COUNTDOWN_SEC);
   lv_label_set_text(g_countdown_label, buf);
+
+  /* Show alarm type in title */
+
+  if (strcmp(alarm_type, "FALL") == 0)
+    {
+      lv_label_set_text(g_alarm_title, "FALL DETECTED!");
+    }
+  else
+    {
+      lv_label_set_text(g_alarm_title, "SOS ALARM");
+    }
 
   /* Set location */
 
