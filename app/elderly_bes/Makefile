@@ -14,11 +14,7 @@ CSRCS += ui_manager.c
 CSRCS += ui_index.c
 CSRCS += ui_health_detail.c
 CSRCS += ui_settings.c
-CSRCS += ui_wifi.c
 CSRCS += ui_sos.c
-CSRCS += wifi_manager.c
-CSRCS += http_upload.c
-CSRCS += sensor_manager.c
 CSRCS += data_collector.c
 
 include $(APPDIR)/Application.mk

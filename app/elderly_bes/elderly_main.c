@@ -16,8 +16,6 @@
 
 #include <lvgl/lvgl.h>
 #include "ui_manager.h"
-#include "sensor_manager.h"
-#include "data_collector.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -53,8 +51,6 @@ int main(int argc, FAR char *argv[])
 
 #ifdef CONFIG_LV_USE_NUTTX_LCD
   info.fb_path = "/dev/lcd0";
-#elif defined(CONFIG_VIDEO_FB)
-  info.fb_path = "/dev/fb0";
 #endif
 
 #ifdef CONFIG_INPUT_TOUCHSCREEN
@@ -84,11 +80,6 @@ int main(int argc, FAR char *argv[])
   while (1)
     {
       uint32_t idle;
-
-      /* 更新传感器数据并同步到 UI */
-
-      data_collector_update();
-
       idle = lv_timer_handler();
       idle = idle ? idle : 1;
       usleep(idle * 1000);
