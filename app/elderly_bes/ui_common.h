@@ -86,6 +86,7 @@ typedef enum
   PAGE_INDEX = 0,
   PAGE_HEALTH_DETAIL,
   PAGE_SETTINGS,
+  PAGE_WIFI,
   PAGE_SOS,
   PAGE_COUNT
 } page_id_t;

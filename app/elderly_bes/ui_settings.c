@@ -12,6 +12,7 @@
 #include "ui_settings.h"
 #include "ui_manager.h"
 #include "http_client.h"
+#include "wifi_manager.h"
 
 /****************************************************************************
  * Private Data
@@ -89,6 +90,16 @@ static void switch_cb(lv_event_t *e)
         ctx->settings.use_sim_data = checked;
         break;
     }
+}
+
+/**
+ * WiFi 入口按钮 — 跳转到 WiFi 设置页
+ */
+
+static void wifi_entry_cb(lv_event_t *e)
+{
+  LV_UNUSED(e);
+  ui_manager_switch_page(PAGE_WIFI);
 }
 
 /**
@@ -322,6 +333,44 @@ lv_obj_t *ui_settings_create(lv_obj_t *parent)
 
   create_switch_row(content, "Sim Data", ctx->settings.use_sim_data,
                      &g_sim_switch, 2);
+
+  create_section_spacer(content, 4);
+
+  /* --- WiFi Settings --- */
+
+  static lv_obj_t *g_wifi_entry_btn;
+  static lv_obj_t *g_wifi_entry_lbl;
+
+  g_wifi_entry_btn = lv_button_create(content);
+  lv_obj_set_size(g_wifi_entry_btn, CONTENT_WIDTH, 44);
+  lv_obj_set_style_radius(g_wifi_entry_btn, 22, 0);
+  lv_obj_set_style_bg_color(g_wifi_entry_btn, COLOR_CARD_BG2, 0);
+  lv_obj_set_style_bg_color(g_wifi_entry_btn, COLOR_CARD_BG,
+                              LV_STATE_PRESSED);
+  lv_obj_set_style_border_width(g_wifi_entry_btn, 1, 0);
+  lv_obj_set_style_border_color(g_wifi_entry_btn, COLOR_BLUE, 0);
+
+  g_wifi_entry_lbl = lv_label_create(g_wifi_entry_btn);
+  wifi_status_t wst = wifi_manager_get_status();
+  if (wst == WIFI_STATUS_CONNECTED)
+    {
+      char wbuf[48];
+      snprintf(wbuf, sizeof(wbuf), LV_SYMBOL_WIFI " %s  >",
+               wifi_manager_get_ssid());
+      lv_label_set_text(g_wifi_entry_lbl, wbuf);
+    }
+  else
+    {
+      lv_label_set_text(g_wifi_entry_lbl, LV_SYMBOL_WIFI " WiFi  >");
+    }
+  lv_obj_set_style_text_color(g_wifi_entry_lbl, COLOR_TEXT_PRIMARY, 0);
+  lv_obj_set_style_text_font(g_wifi_entry_lbl, &lv_font_montserrat_16, 0);
+  lv_obj_center(g_wifi_entry_lbl);
+
+  /* 点击跳转到 WiFi 页面 */
+
+  lv_obj_add_event_cb(g_wifi_entry_btn, wifi_entry_cb,
+                       LV_EVENT_CLICKED, NULL);
 
   create_section_spacer(content, 4);
 
