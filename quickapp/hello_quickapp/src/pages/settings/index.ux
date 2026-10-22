@@ -89,6 +89,12 @@
       <!-- 保存按钮 -->
       <input type="button" class="save-btn" value="保存设置" onclick="saveSettings" />
 
+      <!-- 功能入口（用于测试各圆表页面） -->
+      <div class="quick-entry">
+        <input type="button" class="entry-btn" value="语音交互" onclick="openVoice" />
+        <input type="button" class="entry-btn" value="每日签到" onclick="openCheckIn" />
+      </div>
+
       <!-- 应用信息 -->
       <div class="app-info">
         <text class="info-text">银发守护 v1.0.0</text>
@@ -108,31 +114,32 @@
 
 .container {
   flex-direction: column;
-  padding-top: 65px;
-  padding-bottom: 65px;
-  padding-left: 65px;
-  padding-right: 65px;
+  padding-top: 60px;
+  padding-bottom: 60px;
+  padding-left: 50px;
+  padding-right: 50px;
 }
 
 .header-row {
   flex-direction: row;
-  margin-bottom: 12px;
+  justify-content: center;
+  margin-bottom: 16px;
 }
 
 .back-btn {
-  width: 80px;
-  height: 32px;
+  width: 90px;
+  height: 36px;
   background-color: #333333;
-  border-radius: 16px;
+  border-radius: 18px;
   font-size: 18px;
   color: #FFFFFF;
 }
 
 .title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: bold;
   color: #FFFFFF;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   text-align: center;
 }
 
@@ -145,15 +152,15 @@
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  background-color: #1A1A1A;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  padding: 14px 16px;
+  background-color: #1e293b;
+  border-radius: 16px;
+  margin-bottom: 12px;
 }
 
 .setting-label {
-  font-size: 18px;
-  color: #FFFFFF;
+  font-size: 20px;
+  color: #e2e8f0;
 }
 
 .setting-value-row {
@@ -269,6 +276,23 @@
   font-size: 20px;
   color: #FFFFFF;
   margin-bottom: 16px;
+}
+
+.quick-entry {
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.entry-btn {
+  width: 120px;
+  height: 42px;
+  margin-left: 10px;
+  margin-right: 10px;
+  background-color: #334155;
+  border-radius: 20px;
+  font-size: 18px;
+  color: #e2e8f0;
 }
 
 .app-info {
@@ -489,6 +513,18 @@ export default {
           duration: 2000
         })
       }
+    })
+  },
+
+  openVoice() {
+    router.push({
+      uri: '/pages/voice'
+    })
+  },
+
+  openCheckIn() {
+    router.push({
+      uri: '/pages/checkin'
     })
   },
 

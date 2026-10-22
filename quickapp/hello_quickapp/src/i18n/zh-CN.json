@@ -1,0 +1,48 @@
+{
+  "app": {
+    "name": "银发守护"
+  },
+  "home": {
+    "title": "健康监测",
+    "heartRate": "心率",
+    "spo2": "血氧",
+    "temperature": "体温",
+    "steps": "步数",
+    "activeMinutes": "活动时长",
+    "calories": "卡路里",
+    "settings": "设置"
+  },
+  "sos": {
+    "countdown": "秒后发送求助",
+    "sending": "正在发送求助...",
+    "sent": "求助已发送，正在等待响应...",
+    "cancel": "取消",
+    "networkError": "网络异常，数据已缓存..."
+  },
+  "health": {
+    "details": "健康详情",
+    "history": "历史记录",
+    "noData": "暂无数据",
+    "loading": "加载中..."
+  },
+  "settings": {
+    "title": "设置",
+    "goalSteps": "目标步数",
+    "brightness": "屏幕亮度",
+    "collectInterval": "采集间隔（秒）",
+    "sosEnabled": "SOS 功能",
+    "fallDetection": "跌倒检测",
+    "save": "保存设置",
+    "saved": "设置已保存",
+    "saveFailed": "保存失败，请重试"
+  },
+  "tips": {
+    "heartRateHigh": "心率偏高，建议休息",
+    "heartRateLow": "心率偏低，请注意",
+    "spo2Low": "血氧偏低，建议深呼吸",
+    "temperatureHigh": "体温偏高，注意休息",
+    "temperatureLow": "体温偏低，注意保暖",
+    "久坐": "已久坐1小时，建议活动",
+    "stepsLow": "今日步数较少，明天加油"
+  }
+}

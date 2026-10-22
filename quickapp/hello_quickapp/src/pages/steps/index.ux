@@ -1,0 +1,187 @@
+<template>
+  <div class="container">
+    <!-- 返回入口 -->
+    <div class="header-row">
+      <text class="back-hint" onclick="goBack">返回</text>
+    </div>
+
+    <!-- 页面标题 -->
+    <text class="page-title">今日运动</text>
+
+    <!-- 圆环进度 -->
+    <div class="ring-wrap">
+      <svg class="progress-svg" width="260" height="260">
+        <circle cx="130" cy="130" r="110" stroke="#1e293b" stroke-width="18" fill="none" />
+        <circle cx="130" cy="130" r="110" stroke="#4ade80" stroke-width="18" fill="none"
+          stroke-linecap="round"
+          stroke-dasharray="{{ circumference }}"
+          stroke-dashoffset="{{ dashOffset }}"
+          transform="rotate(-90 130 130)" />
+      </svg>
+      <div class="ring-center">
+        <div class="steps-row">
+          <text class="steps-number">{{ steps }}</text>
+          <text class="steps-unit">步</text>
+        </div>
+        <text class="steps-percent">{{ progressPercent }}%</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+.container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0f172a;
+  padding-top: 70px;
+  padding-bottom: 70px;
+  padding-left: 60px;
+  padding-right: 60px;
+}
+
+.header-row {
+  width: 100%;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.back-hint {
+  font-size: 18px;
+  color: #7dd3fc;
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.page-title {
+  font-size: 28px;
+  color: #94a3b8;
+  margin-bottom: 28px;
+}
+
+.ring-wrap {
+  width: 260px;
+  height: 260px;
+  position: relative;
+}
+
+.progress-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 260px;
+}
+
+.ring-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 260px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.steps-row {
+  flex-direction: row;
+  align-items: baseline;
+}
+
+.steps-number {
+  font-size: 60px;
+  color: #4ade80;
+  font-weight: 700;
+}
+
+.steps-unit {
+  font-size: 22px;
+  color: #94a3b8;
+  margin-left: 6px;
+}
+
+.steps-percent {
+  font-size: 28px;
+  color: #ffffff;
+  margin-top: 8px;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import DataCache from '../../services/DataCache'
+import { STORAGE_KEYS } from '../../utils/constants'
+
+export default {
+  private: {
+    steps: 0,
+    goalSteps: 6000,
+    radius: 110
+  },
+
+  computed: {
+    circumference() {
+      return Math.round(2 * Math.PI * this.radius)
+    },
+    progress() {
+      return Math.min(this.steps / (this.goalSteps || 6000), 1)
+    },
+    dashOffset() {
+      return Math.round(this.circumference * (1 - this.progress))
+    },
+    progressPercent() {
+      return Math.round(this.progress * 100)
+    }
+  },
+
+  onInit() {
+    this.loadGoalSteps()
+    this.dataCache = new DataCache()
+    this.dataCache.init(() => {
+      this.loadStepsData()
+    })
+  },
+
+  onShow() {
+    this.loadGoalSteps()
+    if (this.dataCache && this.dataCache.isLoaded) {
+      this.loadStepsData()
+    }
+  },
+
+  loadGoalSteps() {
+    storage.get({
+      key: STORAGE_KEYS.USER_SETTINGS,
+      success: (data) => {
+        if (data) {
+          try {
+            const settings = JSON.parse(data)
+            this.goalSteps = settings.goalSteps || 6000
+          } catch (e) {
+            console.error('解析目标步数失败:', e)
+          }
+        }
+      },
+      fail: () => {}
+    })
+  },
+
+  loadStepsData() {
+    const activity = this.dataCache.getTodayActivity()
+    this.steps = activity.steps || 0
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>

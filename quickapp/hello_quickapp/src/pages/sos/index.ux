@@ -1,166 +1,65 @@
 <template>
-  <scroll scroll-y="true" class="scroll-container">
-    <div class="container">
-      <!-- SOS 报警页面 -->
-      <div class="sos-content">
-      <!-- 倒计时显示 -->
-      <div class="countdown-section">
-        <text class="countdown-number">{{ countdown }}</text>
-        <text class="countdown-label">秒后发送报警</text>
-      </div>
+  <div class="container">
+    <!-- 标题 -->
+    <text class="sos-title">紧急求助</text>
 
-      <!-- 报警状态 -->
-      <div class="status-section" if="{{ isTriggered }}">
-        <text class="status-text">正在发送报警...</text>
-        <text class="status-sub">请保持冷静，救援即将到达</text>
-      </div>
-
-      <!-- 体征数据显示 -->
-      <div class="vital-section">
-        <div class="vital-row">
-          <text class="vital-label">心率</text>
-          <text class="vital-value">{{ heartRate }} bpm</text>
-        </div>
-        <div class="vital-row">
-          <text class="vital-label">血氧</text>
-          <text class="vital-value">{{ spo2 }}%</text>
-        </div>
-        <div class="vital-row">
-          <text class="vital-label">体温</text>
-          <text class="vital-value">{{ temperature }}°C</text>
-        </div>
-      </div>
-
-      <!-- 位置信息 -->
-      <div class="location-section" if="{{ hasLocation }}">
-        <text class="location-text">已获取位置信息</text>
-      </div>
-
-      <!-- 取消按钮 -->
-      <div class="cancel-section">
-        <div class="cancel-button" onclick="onCancelSOS">
-          <text class="cancel-text">取消报警</text>
-        </div>
-      </div>
+    <!-- SOS 大按钮：长按触发 -->
+    <div class="sos-button"
+         ontouchstart="onSOSPress"
+         ontouchend="onSOSRelease">
+      <text class="sos-label" if="{{ !isTriggered }}">SOS</text>
+      <text class="sos-label" if="{{ isTriggered }}">发送中…</text>
     </div>
+
+    <!-- 底部提示 -->
+    <text class="sos-hint" if="{{ !isTriggered }}">长按触发</text>
+    <text class="sos-hint" if="{{ isTriggered }}">正在联系家人</text>
   </div>
-  </scroll>
 </template>
 
 <style>
-.scroll-container {
+.container {
   width: 466px;
   height: 466px;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%);
+  padding-top: 70px;
+  padding-bottom: 70px;
+  padding-left: 60px;
+  padding-right: 60px;
 }
 
-.container {
-  width: 466px;
-  flex-direction: column;
-  background-color: #000000;
+.sos-title {
+  font-size: 32px;
+  color: #fca5a5;
+  font-weight: 700;
+  margin-bottom: 28px;
 }
 
-.sos-content {
+.sos-button {
+  width: 200px;
+  height: 200px;
+  border-radius: 100px;
   flex-direction: column;
   align-items: center;
-  padding-top: 65px;
-  padding-bottom: 65px;
-  padding-left: 65px;
-  padding-right: 65px;
+  justify-content: center;
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  border-width: 6px;
+  border-color: #f87171;
 }
 
-.countdown-section {
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.countdown-number {
-  font-size: 60px;
-  color: #FF6B6B;
-  font-weight: bold;
-}
-
-.countdown-label {
-  font-size: 18px;
-  color: #999999;
-  margin-top: 8px;
-}
-
-.status-section {
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.status-text {
-  font-size: 24px;
-  color: #FF6B6B;
-  font-weight: bold;
-}
-
-.status-sub {
-  font-size: 16px;
-  color: #999999;
-  margin-top: 8px;
-}
-
-.vital-section {
-  flex-direction: column;
-  background-color: #1a1a1a;
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 16px;
-  width: 100%;
-}
-
-.vital-row {
-  flex-direction: row;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.vital-label {
-  font-size: 18px;
-  color: #999999;
-}
-
-.vital-value {
-  font-size: 18px;
+.sos-label {
+  font-size: 56px;
   color: #ffffff;
-  font-weight: bold;
+  font-weight: 700;
 }
 
-.location-section {
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-.location-text {
-  font-size: 14px;
-  color: #4CAF50;
-}
-
-.cancel-section {
-  flex-direction: row;
-  justify-content: center;
-}
-
-.cancel-button {
-  width: 140px;
-  height: 50px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  background-color: #333333;
-  border-radius: 25px;
-}
-
-.cancel-text {
-  font-size: 20px;
-  color: #ffffff;
+.sos-hint {
+  font-size: 22px;
+  color: #fca5a5;
+  margin-top: 28px;
 }
 </style>
 
@@ -179,26 +78,25 @@ export default {
   },
 
   private: {
-    countdown: 10,
     isTriggered: false,
     heartRate: '--',
     spo2: '--',
     temperature: '--',
     hasLocation: false,
-    countdownTimer: null,
     sosPacket: null,
     uploadService: null,
-    alarmService: null
+    alarmService: null,
+    longPressTimer: null,
+    longPressThreshold: 1500
   },
 
   onInit() {
     this.initServices()
     this.parseSOSData()
-    this.startCountdown()
   },
 
   onDestroy() {
-    this.stopCountdown()
+    this.stopLongPress()
     this.cleanupServices()
   },
 
@@ -251,7 +149,6 @@ export default {
       }
     }
 
-    // 获取当前位置
     this.getCurrentLocation()
   },
 
@@ -275,36 +172,46 @@ export default {
   },
 
   /**
-   * 开始倒计时
+   * 停止长按计时
    */
-  startCountdown() {
-    this.countdownTimer = setInterval(() => {
-      this.countdown--
-
-      if (this.countdown <= 0) {
-        this.triggerSOS()
-      }
-    }, 1000)
+  stopLongPress() {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer)
+      this.longPressTimer = null
+    }
   },
 
   /**
-   * 停止倒计时
+   * SOS 按钮按下（启动长按计时）
    */
-  stopCountdown() {
-    if (this.countdownTimer) {
-      clearInterval(this.countdownTimer)
-      this.countdownTimer = null
-    }
+  onSOSPress() {
+    vibrator.vibrate({
+      mode: 'short',
+      success: () => {},
+      fail: () => {}
+    })
+
+    this.longPressTimer = setTimeout(() => {
+      this.triggerSOS()
+    }, this.longPressThreshold)
+  },
+
+  /**
+   * SOS 按钮松开（取消长按）
+   */
+  onSOSRelease() {
+    this.stopLongPress()
   },
 
   /**
    * 触发 SOS 报警
    */
   triggerSOS() {
-    this.stopCountdown()
+    if (this.isTriggered) return
+
+    this.stopLongPress()
     this.isTriggered = true
 
-    // 持续震动
     vibrator.vibrate({
       mode: 'long',
       success: () => {},
@@ -313,13 +220,9 @@ export default {
       }
     })
 
-    // 保存报警记录
     this.saveAlarmRecord()
-
-    // 上传报警数据
     this.uploadAlarmData()
 
-    // 3秒后返回首页
     setTimeout(() => {
       this.returnToHome()
     }, 3000)
@@ -343,7 +246,6 @@ export default {
 
         records.push(this.sosPacket)
 
-        // 最多保存 100 条记录
         if (records.length > 100) {
           records = records.slice(-100)
         }
@@ -352,19 +254,19 @@ export default {
           key: STORAGE_KEYS.SOS_RECORDS,
           value: JSON.stringify(records),
           success: () => {},
-          fail: (data, code) => {
-            console.error(`保存报警记录失败: code=${code}`)
+          fail: () => {
+            console.error('保存报警记录失败')
           }
         })
       },
-      fail: (data, code) => {
-        console.error(`读取报警记录失败: code=${code}`)
+      fail: () => {
+        console.error('读取报警记录失败')
         storage.set({
           key: STORAGE_KEYS.SOS_RECORDS,
           value: JSON.stringify([this.sosPacket]),
           success: () => {},
-          fail: (data, code) => {
-            console.error(`保存报警记录失败: code=${code}`)
+          fail: () => {
+            console.error('保存报警记录失败')
           }
         })
       }
@@ -376,18 +278,6 @@ export default {
    */
   uploadAlarmData() {
     this.uploadService.uploadAlarm(this.sosPacket)
-  },
-
-  /**
-   * 取消 SOS 报警
-   */
-  onCancelSOS() {
-    this.stopCountdown()
-    vibrator.stop({
-      success: () => {},
-      fail: (data, code) => {}
-    })
-    this.returnToHome()
   },
 
   /**
@@ -409,7 +299,7 @@ export default {
     }
     vibrator.stop({
       success: () => {},
-      fail: (data, code) => {}
+      fail: () => {}
     })
   }
 }

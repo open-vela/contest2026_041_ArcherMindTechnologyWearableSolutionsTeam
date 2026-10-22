@@ -1,0 +1,105 @@
+<template>
+  <div class="container">
+    <!-- 警告图标 -->
+    <text class="alarm-icon">⚠</text>
+
+    <!-- 报警标题 -->
+    <text class="alarm-title">{{ title }}</text>
+
+    <!-- 报警说明 -->
+    <text class="alarm-message">{{ message }}</text>
+
+    <!-- 知道了按钮 -->
+    <div class="confirm-btn" onclick="onConfirm">
+      <text class="confirm-text">知道了</text>
+    </div>
+  </div>
+</template>
+
+<style>
+.container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  padding-top: 70px;
+  padding-bottom: 70px;
+  padding-left: 60px;
+  padding-right: 60px;
+}
+
+.alarm-icon {
+  font-size: 80px;
+  color: #ffffff;
+  margin-bottom: 24px;
+}
+
+.alarm-title {
+  font-size: 48px;
+  color: #ffffff;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.alarm-message {
+  font-size: 26px;
+  color: #fecaca;
+  margin-bottom: 60px;
+}
+
+.confirm-btn {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border-radius: 40px;
+  padding-left: 60px;
+  padding-right: 60px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.confirm-text {
+  font-size: 30px;
+  color: #dc2626;
+  font-weight: 700;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import vibrator from '@system.vibrator'
+
+export default {
+  protected: {
+    title: '心率异常',
+    message: '您的心率偏高',
+    level: 'warning'
+  },
+
+  onInit() {
+    vibrator.vibrate({
+      mode: 'long',
+      success: () => {},
+      fail: () => {}
+    })
+  },
+
+  onDestroy() {
+    vibrator.stop({
+      success: () => {},
+      fail: () => {}
+    })
+  },
+
+  onConfirm() {
+    vibrator.stop({
+      success: () => {},
+      fail: () => {}
+    })
+    router.back()
+  }
+}
+</script>

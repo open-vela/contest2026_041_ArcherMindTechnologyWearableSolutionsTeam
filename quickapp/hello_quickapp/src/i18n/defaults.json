@@ -1,0 +1,48 @@
+{
+  "app": {
+    "name": "Silver-haired Protector"
+  },
+  "home": {
+    "title": "Health Monitor",
+    "heartRate": "Heart Rate",
+    "spo2": "SpO2",
+    "temperature": "Temperature",
+    "steps": "Steps",
+    "activeMinutes": "Active Minutes",
+    "calories": "Calories",
+    "settings": "Settings"
+  },
+  "sos": {
+    "countdown": "seconds to send help",
+    "sending": "Sending help request...",
+    "sent": "Help request sent, waiting for response...",
+    "cancel": "Cancel",
+    "networkError": "Network error, data cached..."
+  },
+  "health": {
+    "details": "Health Details",
+    "history": "History",
+    "noData": "No data available",
+    "loading": "Loading..."
+  },
+  "settings": {
+    "title": "Settings",
+    "goalSteps": "Daily Step Goal",
+    "brightness": "Brightness",
+    "collectInterval": "Collection Interval (sec)",
+    "sosEnabled": "SOS Function",
+    "fallDetection": "Fall Detection",
+    "save": "Save Settings",
+    "saved": "Settings saved",
+    "saveFailed": "Save failed, please try again"
+  },
+  "tips": {
+    "heartRateHigh": "Heart rate elevated, rest recommended",
+    "heartRateLow": "Heart rate low, please note",
+    "spo2Low": "Blood oxygen low, breathe deeply",
+    "temperatureHigh": "Temperature elevated, rest needed",
+    "temperatureLow": "Temperature low, keep warm",
+    "久坐": "Sitting for 1 hour, activity recommended",
+    "stepsLow": "Step count low today, try to move more"
+  }
+}
