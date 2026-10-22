@@ -1,0 +1,143 @@
+<template>
+  <div class="container">
+    <text class="greeting">{{ greeting }}</text>
+    <text class="checkin-time">{{ currentTime }} 签到</text>
+
+    <div class="checkin-btn" onclick="onCheckIn">
+      <text class="checkin-text" if="{{ !checkedIn }}">我很好</text>
+      <text class="checkin-text" if="{{ checkedIn }}">已签到</text>
+      <text class="checkin-check" if="{{ !checkedIn }}">✓</text>
+      <text class="checkin-check" if="{{ checkedIn }}">✓</text>
+    </div>
+  </div>
+</template>
+
+<style>
+.container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #15803d 0%, #052e16 100%);
+  padding-top: 70px;
+  padding-bottom: 70px;
+  padding-left: 60px;
+  padding-right: 60px;
+}
+
+.greeting {
+  font-size: 46px;
+  color: #bbf7d0;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.checkin-time {
+  font-size: 26px;
+  color: #86efac;
+  margin-bottom: 60px;
+}
+
+.checkin-btn {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  border-radius: 48px;
+  padding-left: 48px;
+  padding-right: 48px;
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.checkin-text {
+  font-size: 34px;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.checkin-check {
+  font-size: 34px;
+  color: #ffffff;
+  font-weight: 700;
+  margin-left: 10px;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import storage from '@system.storage'
+import { STORAGE_KEYS } from '../../utils/constants'
+
+export default {
+  private: {
+    greeting: '早上好！',
+    currentTime: '08:00',
+    checkedIn: false
+  },
+
+  onInit() {
+    this.updateGreeting()
+    this.updateTime()
+    this.loadCheckInStatus()
+  },
+
+  onShow() {
+    this.updateGreeting()
+    this.updateTime()
+    this.loadCheckInStatus()
+  },
+
+  updateGreeting() {
+    const hour = new Date().getHours()
+    if (hour < 12) {
+      this.greeting = '早上好！'
+    } else if (hour < 18) {
+      this.greeting = '下午好！'
+    } else {
+      this.greeting = '晚上好！'
+    }
+  },
+
+  updateTime() {
+    const now = new Date()
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    this.currentTime = `${hours}:${minutes}`
+  },
+
+  loadCheckInStatus() {
+    const today = new Date().toDateString()
+    storage.get({
+      key: STORAGE_KEYS.CHECKIN_DATE,
+      success: (data) => {
+        this.checkedIn = data === today
+      },
+      fail: () => {
+        this.checkedIn = false
+      }
+    })
+  },
+
+  onCheckIn() {
+    if (this.checkedIn) {
+      router.back()
+      return
+    }
+
+    const today = new Date().toDateString()
+    storage.set({
+      key: STORAGE_KEYS.CHECKIN_DATE,
+      value: today,
+      success: () => {
+        this.checkedIn = true
+        setTimeout(() => {
+          router.back()
+        }, 800)
+      },
+      fail: () => {}
+    })
+  }
+}
+</script>

@@ -1,0 +1,173 @@
+<template>
+  <div class="container">
+    <!-- 返回入口 -->
+    <div class="header-row">
+      <text class="back-hint" onclick="goBack">返回</text>
+    </div>
+
+    <!-- 十字形功能菜单 -->
+    <div class="menu-cross">
+      <!-- 上：健康 -->
+      <div class="menu-item" onclick="openHealth">
+        <div class="menu-icon health-icon">
+          <image src="/common/images/icons/heart-rate.png" class="icon-img"></image>
+        </div>
+        <text class="menu-name">健康</text>
+      </div>
+
+      <!-- 中：左电话 / 右设置 -->
+      <div class="menu-middle-row">
+        <div class="menu-item" onclick="openSOS">
+          <div class="menu-icon call-icon">
+            <text class="icon-text">☎</text>
+          </div>
+          <text class="menu-name">求助</text>
+        </div>
+
+        <div class="menu-item" onclick="openSettings">
+          <div class="menu-icon settings-icon">
+            <image src="/common/images/icons/settings.png" class="icon-img"></image>
+          </div>
+          <text class="menu-name">设置</text>
+        </div>
+      </div>
+
+      <!-- 下：运动 -->
+      <div class="menu-item" onclick="openSteps">
+        <div class="menu-icon steps-icon">
+          <image src="/common/images/icons/steps.png" class="icon-img"></image>
+        </div>
+        <text class="menu-name">运动</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+.container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0f172a;
+  padding-top: 70px;
+  padding-bottom: 70px;
+  padding-left: 60px;
+  padding-right: 60px;
+}
+
+.header-row {
+  width: 100%;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.back-hint {
+  font-size: 18px;
+  color: #7dd3fc;
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.menu-cross {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-middle-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.menu-item {
+  flex-direction: column;
+  align-items: center;
+}
+
+.menu-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-img {
+  width: 44px;
+  height: 44px;
+}
+
+.icon-text {
+  font-size: 40px;
+  color: #ffffff;
+}
+
+.health-icon {
+  background-color: #7f1d1d;
+}
+
+.call-icon {
+  background-color: #1e3a5f;
+}
+
+.settings-icon {
+  background-color: #c2410c;
+}
+
+.steps-icon {
+  background-color: #14532d;
+}
+
+.menu-name {
+  font-size: 20px;
+  color: #e2e8f0;
+  margin-top: 10px;
+}
+</style>
+
+<script>
+import router from '@system.router'
+
+export default {
+  openHealth() {
+    router.push({
+      uri: '/pages/health-detail',
+      params: { type: 'heartRate' }
+    })
+  },
+
+  openSOS() {
+    router.push({
+      uri: '/pages/sos'
+    })
+  },
+
+  openSteps() {
+    router.push({
+      uri: '/pages/steps'
+    })
+  },
+
+  openSettings() {
+    router.push({
+      uri: '/pages/settings'
+    })
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>

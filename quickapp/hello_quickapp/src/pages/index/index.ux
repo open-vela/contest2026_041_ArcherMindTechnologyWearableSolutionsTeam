@@ -1,89 +1,56 @@
 <template>
   <div class="container">
-    <scroll scroll-y="true" class="scroll-container">
-      <div class="content">
-        <!-- 状态栏 -->
-        <div class="status-bar">
-          <text class="time-text">{{ currentTime }}</text>
-          <div class="status-icons">
-            <text class="upload-badge {{ uploadMode }}">{{ uploadMode === 'mqtt' ? 'MQTT' : 'HTTP' }}</text>
-            <text class="data-source-badge {{ dataSource }}">{{ dataSource === 'mock' ? '模拟' : '实时' }}</text>
-            <text class="battery-text">{{ batteryLevel }}%</text>
-            <div class="settings-btn" onclick="onSettingsTap">
-              <image src="/common/images/icons/settings.png" class="settings-icon"></image>
-            </div>
+    <!-- 顶部标题：菜单 -->
+    <div class="top-bar">
+      <text class="menu-title">菜单</text>
+    </div>
+
+    <!-- 日期 -->
+    <text class="date-text">{{ currentDate }}</text>
+
+    <!-- 功能菜单 2x2 网格 -->
+    <div class="menu-grid">
+      <div class="menu-row">
+        <div class="menu-item" onclick="openHealth">
+          <div class="menu-icon health-icon">
+            <image src="/common/images/icons/heart-rate.png" class="icon-img"></image>
           </div>
+          <text class="menu-name">健康</text>
         </div>
 
-        <!-- SOS 按钮 -->
-        <div class="sos-section">
-          <div class="sos-button" onclick="onSOSPress">
-            <image src="/common/images/icons/sos.png" class="sos-icon"></image>
-            <text class="sos-text">SOS</text>
+        <div class="menu-item" onclick="openSOS">
+          <div class="menu-icon call-icon">
+            <text class="icon-text">☎</text>
           </div>
-        </div>
-
-        <!-- 体征数据卡片 -->
-        <div class="vital-cards">
-          <div class="vital-card" onclick="onVitalTap('heartRate')">
-            <image src="/common/images/icons/heart-rate.png" class="vital-icon"></image>
-            <div class="vital-info">
-              <text class="vital-label">心率</text>
-              <text class="vital-value">{{ heartRateDisplay }}</text>
-            </div>
-            <div class="status-dot {{ heartRateStatus }}"></div>
-          </div>
-
-          <div class="vital-card" onclick="onVitalTap('spo2')">
-            <image src="/common/images/icons/spo2.png" class="vital-icon"></image>
-            <div class="vital-info">
-              <text class="vital-label">血氧</text>
-              <text class="vital-value">{{ spo2Display }}</text>
-            </div>
-            <div class="status-dot {{ spo2Status }}"></div>
-          </div>
-
-          <div class="vital-card" onclick="onVitalTap('temperature')">
-            <image src="/common/images/icons/temperature.png" class="vital-icon"></image>
-            <div class="vital-info">
-              <text class="vital-label">体温</text>
-              <text class="vital-value">{{ temperatureDisplay }}</text>
-            </div>
-            <div class="status-dot {{ temperatureStatus }}"></div>
-          </div>
-        </div>
-
-        <!-- 活动统计 -->
-        <div class="activity-section">
-          <div class="activity-header">
-            <text class="section-title">今日活动</text>
-          </div>
-          <div class="activity-stats">
-            <div class="stat-item">
-              <image src="/common/images/icons/steps.png" class="stat-icon"></image>
-              <text class="stat-value">{{ steps }}</text>
-              <text class="stat-label">步数</text>
-            </div>
-            <div class="stat-item">
-              <text class="stat-value">{{ activeMinutes }}</text>
-              <text class="stat-label">分钟</text>
-            </div>
-            <div class="stat-item">
-              <text class="stat-value">{{ calories }}</text>
-              <text class="stat-label">千卡</text>
-            </div>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: {{ progressWidth }}px"></div>
-          </div>
-        </div>
-
-        <!-- 健康提示 -->
-        <div class="health-tip" if="{{ healthTipMessage }}">
-          <text class="tip-text {{ healthTipLevel }}">{{ healthTipMessage }}</text>
+          <text class="menu-name">求助</text>
         </div>
       </div>
-    </scroll>
+
+      <div class="menu-row">
+        <div class="menu-item" onclick="openSteps">
+          <div class="menu-icon steps-icon">
+            <image src="/common/images/icons/steps.png" class="icon-img"></image>
+          </div>
+          <text class="menu-name">运动</text>
+        </div>
+
+        <div class="menu-item" onclick="openSettings">
+          <div class="menu-icon settings-icon">
+            <image src="/common/images/icons/settings.png" class="icon-img"></image>
+          </div>
+          <text class="menu-name">设置</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部心率胶囊 -->
+    <div class="bottom-vital" onclick="onVitalTap('heartRate')">
+      <div class="hr-pill">
+        <image src="/common/images/icons/heart-rate.png" class="hr-icon"></image>
+        <text class="hr-value">{{ heartRateDisplay }}</text>
+        <text class="hr-unit">次/分</text>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -92,263 +59,135 @@
   width: 466px;
   height: 466px;
   flex-direction: column;
+  align-items: center;
   background-color: #000000;
+  padding-top: 60px;
+  padding-bottom: 60px;
+  padding-left: 60px;
+  padding-right: 60px;
 }
 
-.scroll-container {
-  width: 466px;
-  height: 466px;
-  flex-direction: column;
-}
-
-.content {
-  flex-direction: column;
-  padding: 65px;
-  padding-left: 65px;
-  padding-right: 65px;
-}
-
-.status-bar {
+.top-bar {
+  width: 100%;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   margin-bottom: 10px;
 }
 
-.time-text {
-  font-size: 20px;
-  color: #999999;
+.menu-title {
+  font-size: 16px;
+  color: rgba(125, 211, 252, 0.8);
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
-.status-icons {
+.date-text {
+  font-size: 26px;
+  color: #7dd3fc;
+  margin-bottom: 18px;
+}
+
+.menu-grid {
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.menu-row {
   flex-direction: row;
   align-items: center;
-}
-
-.battery-text {
-  font-size: 18px;
-  color: #999999;
-  margin-right: 8px;
-}
-
-.settings-btn {
-  width: 28px;
-  height: 28px;
   justify-content: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.menu-item {
+  flex-direction: column;
   align-items: center;
+  margin-left: 18px;
+  margin-right: 18px;
+}
+
+.menu-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-img {
+  width: 40px;
+  height: 40px;
+}
+
+.icon-text {
+  font-size: 38px;
+  color: #ffffff;
+}
+
+.health-icon {
+  background-color: #7f1d1d;
+}
+
+.call-icon {
+  background-color: #1e3a5f;
+}
+
+.steps-icon {
+  background-color: #14532d;
 }
 
 .settings-icon {
-  width: 24px;
-  height: 24px;
+  background-color: #c2410c;
 }
 
-.data-source-badge {
-  font-size: 12px;
-  padding-left: 6px;
-  padding-right: 6px;
-  padding-top: 2px;
-  padding-bottom: 2px;
-  border-radius: 8px;
-  margin-right: 8px;
-}
-
-.data-source-badge.mock {
-  color: #FFFFFF;
-  background-color: #FF9800;
-}
-
-.data-source-badge.real {
-  color: #FFFFFF;
-  background-color: #4CAF50;
-}
-
-.upload-badge {
-  font-size: 12px;
-  padding-left: 6px;
-  padding-right: 6px;
-  padding-top: 2px;
-  padding-bottom: 2px;
-  border-radius: 8px;
-  margin-right: 8px;
-}
-
-.upload-badge.http {
-  color: #FFFFFF;
-  background-color: #2196F3;
-}
-
-.upload-badge.mqtt {
-  color: #FFFFFF;
-  background-color: #4CAF50;
-}
-
-.sos-section {
-  flex-direction: row;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-
-.sos-button {
-  width: 80px;
-  height: 40px;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  background-color: #FF6B6B;
-  border-radius: 20px;
-}
-
-.sos-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-}
-
-.sos-text {
+.menu-name {
   font-size: 18px;
-  color: #ffffff;
-  font-weight: bold;
+  color: #e2e8f0;
+  margin-top: 8px;
 }
 
-.vital-cards {
-  flex-direction: column;
-  margin-bottom: 12px;
+.bottom-vital {
+  width: 100%;
+  flex-direction: row;
+  justify-content: center;
 }
 
-.vital-card {
+.hr-pill {
   flex-direction: row;
   align-items: center;
-  width: 100%;
-  background-color: #1a1a1a;
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 8px;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding-left: 28px;
+  padding-right: 28px;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
-.vital-icon {
-  width: 32px;
-  height: 32px;
+.hr-icon {
+  width: 34px;
+  height: 34px;
   margin-right: 10px;
 }
 
-.vital-info {
-  flex: 1;
-  flex-direction: column;
-}
-
-.vital-label {
-  font-size: 16px;
-  color: #999999;
-}
-
-.vital-value {
-  font-size: 24px;
+.hr-value {
+  font-size: 46px;
   color: #ffffff;
-  font-weight: bold;
+  font-weight: 700;
 }
 
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 5px;
-}
-
-.status-dot.normal {
-  background-color: #4CAF50;
-}
-
-.status-dot.warning {
-  background-color: #FF9800;
-}
-
-.status-dot.danger {
-  background-color: #FF6B6B;
-}
-
-.activity-section {
-  flex-direction: column;
-  width: 100%;
-  background-color: #1a1a1a;
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 12px;
-}
-
-.activity-header {
-  flex-direction: row;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.section-title {
+.hr-unit {
   font-size: 18px;
-  color: #ffffff;
-  font-weight: bold;
-}
-
-.activity-stats {
-  flex-direction: row;
-  justify-content: space-around;
-  margin-bottom: 8px;
-}
-
-.stat-item {
-  flex-direction: column;
-  align-items: center;
-}
-
-.stat-icon {
-  width: 24px;
-  height: 24px;
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  font-size: 22px;
-  color: #ffffff;
-  font-weight: bold;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #999999;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 6px;
-  background-color: #333333;
-  border-radius: 3px;
-}
-
-.progress-fill {
-  height: 6px;
-  background-color: #4CAF50;
-  border-radius: 3px;
-}
-
-.health-tip {
-  width: 100%;
-  background-color: #1a1a1a;
-  border-radius: 12px;
-  padding: 12px;
-}
-
-.tip-text {
-  font-size: 16px;
-}
-
-.tip-text.info {
-  color: #4CAF50;
-}
-
-.tip-text.warning {
-  color: #FF9800;
-}
-
-.tip-text.danger {
-  color: #FF6B6B;
+  color: #94a3b8;
+  margin-left: 6px;
 }
 </style>
 
@@ -394,6 +233,7 @@ export default {
     isNetworkAvailable: true,
     batteryLevel: 100,
     currentTime: '--:--',
+    currentDate: '--月--日',
     lastUpdateTime: 0,
     uploadMode: 'http',       // 当前上传模式
     mqttConnected: false,     // MQTT 连接状态
@@ -414,12 +254,16 @@ export default {
 
     // SOS 长按相关
     sosPressTimer: null,
-    sosLongPressThreshold: 1500
+    sosLongPressThreshold: 1500,
+
+    // 报警页跳转冷却（避免频繁跳转）
+    lastAlarmNavigateTime: 0,
+    alarmNavigateCooldown: 60000
   },
 
   computed: {
     heartRateDisplay() {
-      return this.heartRate > 0 ? this.heartRate + ' bpm' : '-- bpm'
+      return this.heartRate > 0 ? this.heartRate : '--'
     },
     spo2Display() {
       return this.spo2 > 0 ? this.spo2 + '%' : '--%'
@@ -442,6 +286,8 @@ export default {
   onShow() {
     // 重新加载设置，确保数据来源配置是最新的
     this.loadSettings()
+    // 早晨未签到时自动跳转到每日签到页
+    this.checkMorningCheckIn()
     // 重新加载上传模式（用户可能在设置页修改了）
     this._loadUploadModeConfig()
     // 立刻同步当前上传模式（避免异步竞态）
@@ -553,7 +399,7 @@ export default {
     // 报警服务
     this.alarmService = new AlarmService(this.uploadService)
     this.alarmService.init({
-      onSOS: (alarmData) => {
+      onSOS: () => {
         console.log('SOS 报警已触发')
       }
     })
@@ -630,6 +476,27 @@ export default {
 
     this.mqttService.publish(MQTT_TOPICS.ONLINE(DEVICE_SN), packet)
     console.log(`[Index] 设备上线已上报 → device/${DEVICE_SN}/online`)
+  },
+
+  /**
+   * 检查早晨签到：每天 06:00-10:00 未签到时自动跳转签到页
+   */
+  checkMorningCheckIn() {
+    const hour = new Date().getHours()
+    if (hour < 6 || hour >= 10) return
+
+    const today = new Date().toDateString()
+    storage.get({
+      key: STORAGE_KEYS.CHECKIN_DATE,
+      success: (data) => {
+        if (data !== today) {
+          router.push({
+            uri: '/pages/checkin'
+          })
+        }
+      },
+      fail: () => {}
+    })
   },
 
   /**
@@ -784,6 +651,12 @@ export default {
     const hours = now.getHours().toString().padStart(2, '0')
     const minutes = now.getMinutes().toString().padStart(2, '0')
     this.currentTime = `${hours}:${minutes}`
+
+    const month = now.getMonth() + 1
+    const date = now.getDate()
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    const weekDay = weekDays[now.getDay()]
+    this.currentDate = `${month}月${date}日 ${weekDay}`
   },
 
   /**
@@ -884,7 +757,43 @@ export default {
         alarm.level,
         vitals
       )
+      // 圆表报警提醒页：体征异常时跳转可视化告警
+      this.navigateToAlarm(alarm)
     }
+  },
+
+  /**
+   * 跳转到报警提醒页（带冷却，避免频繁跳转）
+   */
+  navigateToAlarm(alarm) {
+    const now = Date.now()
+    if (now - this.lastAlarmNavigateTime < this.alarmNavigateCooldown) {
+      return
+    }
+    this.lastAlarmNavigateTime = now
+
+    const titleMap = {
+      '心率严重异常': '心率异常',
+      '心率异常': '心率异常',
+      '血氧严重异常': '血氧异常',
+      '血氧偏低': '血氧异常'
+    }
+
+    const messageMap = {
+      '心率严重异常': '您的心率严重异常，请立即关注',
+      '心率异常': '您的心率偏高',
+      '血氧严重异常': '您的血氧严重偏低',
+      '血氧偏低': '您的血氧偏低'
+    }
+
+    router.push({
+      uri: '/pages/alarm',
+      params: {
+        title: titleMap[alarm.reason] || '体征异常',
+        message: messageMap[alarm.reason] || alarm.reason || '检测到身体指标异常',
+        level: alarm.level || 'warning'
+      }
+    })
   },
 
   /**
@@ -981,9 +890,37 @@ export default {
   },
 
   /**
-   * 设置按钮点击
+   * 打开健康详情
    */
-  onSettingsTap() {
+  openHealth() {
+    router.push({
+      uri: '/pages/health-detail',
+      params: { type: 'heartRate' }
+    })
+  },
+
+  /**
+   * 打开 SOS 求助
+   */
+  openSOS() {
+    router.push({
+      uri: '/pages/sos'
+    })
+  },
+
+  /**
+   * 打开运动步数
+   */
+  openSteps() {
+    router.push({
+      uri: '/pages/steps'
+    })
+  },
+
+  /**
+   * 打开设置
+   */
+  openSettings() {
     router.push({
       uri: '/pages/settings'
     })

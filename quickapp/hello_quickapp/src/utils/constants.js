@@ -60,7 +60,8 @@ export const STORAGE_KEYS = {
   UPLOAD_LOG: 'upload_log',
   UPLOAD_MODE: 'upload_mode',
   MQTT_STATUS: 'mqtt_status',
-  MQTT_CMD: 'mqtt_cmd'
+  MQTT_CMD: 'mqtt_cmd',
+  CHECKIN_DATE: 'checkin_date'
 }
 
 // ============================================

@@ -1,0 +1,159 @@
+<template>
+  <div class="container">
+    <!-- 返回入口 -->
+    <div class="header-row">
+      <text class="back-hint" onclick="goBack">返回</text>
+    </div>
+
+    <!-- 页面标题 -->
+    <text class="page-title">健康</text>
+
+    <!-- 体征卡片列表（设计图为图标 + 数值，无单独名称） -->
+    <div class="cards">
+      <div class="health-card" onclick="onCardTap('heartRate')">
+        <image src="/common/images/icons/heart-rate.png" class="card-icon"></image>
+        <text class="card-value">{{ heartRateDisplay }}</text>
+      </div>
+
+      <div class="health-card" onclick="onCardTap('spo2')">
+        <image src="/common/images/icons/spo2.png" class="card-icon"></image>
+        <text class="card-value">{{ spo2Display }}</text>
+      </div>
+
+      <div class="health-card" onclick="onCardTap('temperature')">
+        <image src="/common/images/icons/temperature.png" class="card-icon"></image>
+        <text class="card-value">{{ temperatureDisplay }}</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+.container {
+  width: 466px;
+  height: 466px;
+  flex-direction: column;
+  align-items: center;
+  background-color: #0f172a;
+  padding-top: 70px;
+  padding-bottom: 70px;
+  padding-left: 50px;
+  padding-right: 50px;
+}
+
+.header-row {
+  width: 100%;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.back-hint {
+  font-size: 18px;
+  color: #7dd3fc;
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: 14px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.page-title {
+  font-size: 28px;
+  color: #94a3b8;
+  margin-bottom: 24px;
+}
+
+.cards {
+  width: 100%;
+  flex-direction: column;
+}
+
+.health-card {
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  background-color: #1e293b;
+  border-radius: 22px;
+  padding-left: 20px;
+  padding-right: 24px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 14px;
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  margin-right: 18px;
+}
+
+.card-value {
+  flex: 1;
+  font-size: 40px;
+  color: #ffffff;
+  font-weight: 700;
+}
+</style>
+
+<script>
+import router from '@system.router'
+import DataCache from '../../services/DataCache'
+
+export default {
+  protected: {
+    type: 'heartRate'
+  },
+
+  private: {
+    heartRate: -1,
+    spo2: -1,
+    temperature: -1,
+    dataCache: null
+  },
+
+  computed: {
+    heartRateDisplay() {
+      return this.heartRate > 0 ? this.heartRate + '次/分' : '--'
+    },
+    spo2Display() {
+      return this.spo2 > 0 ? this.spo2 + '%' : '--'
+    },
+    temperatureDisplay() {
+      return this.temperature > 0 ? this.temperature.toFixed(1) + '°C' : '--°C'
+    }
+  },
+
+  onInit() {
+    this.dataCache = new DataCache()
+    this.dataCache.init(() => {
+      this.loadLatestData()
+    })
+  },
+
+  onShow() {
+    if (this.dataCache && this.dataCache.isLoaded) {
+      this.loadLatestData()
+    }
+  },
+
+  loadLatestData() {
+    const latest = this.dataCache.getLatestVital()
+    if (latest) {
+      this.heartRate = latest.heartRate || -1
+      this.spo2 = latest.spo2 || -1
+      this.temperature = latest.temperature || -1
+    }
+  },
+
+  onCardTap(type) {
+    // 圆表设计以一览为主，点击可后续扩展为单项详情
+    console.log(`点击体征卡片: ${type}`)
+  },
+
+  goBack() {
+    router.back()
+  }
+}
+</script>
